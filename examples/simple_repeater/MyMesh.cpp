@@ -711,6 +711,7 @@ bool MyMesh::onPeerPathRecv(mesh::Packet *packet, int sender_idx, const uint8_t 
 #define CTL_TYPE_NODE_DISCOVER_RESP  0x90
 
 void MyMesh::onControlDataRecv(mesh::Packet* packet) {
+#if !defined(ENABLE_STEALTH_MODE)
   uint8_t type = packet->payload[0] & 0xF0;    // just test upper 4 bits
   if (type == CTL_TYPE_NODE_DISCOVER_REQ && packet->payload_len >= 6
       && !_prefs.disable_fwd && discover_limiter.allow(rtc_clock.getCurrentTime())
@@ -739,6 +740,7 @@ void MyMesh::onControlDataRecv(mesh::Packet* packet) {
       }
     }
   }
+#endif
 }
 
 MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondClock &ms, mesh::RNG &rng,
@@ -787,7 +789,7 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.interference_threshold = 0; // disabled
 
   // bridge defaults
-  _prefs.bridge_enabled = 1;    // enabled
+  _prefs.bridge_enabled = 0;    // enabled
   _prefs.bridge_delay   = 500;  // milliseconds
   _prefs.bridge_pkt_src = 0;    // logTx
   _prefs.bridge_baud = 115200;  // baud rate

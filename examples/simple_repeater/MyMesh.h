@@ -76,6 +76,10 @@ struct NeighbourInfo {
   #define FIRMWARE_VERSION   "v1.12.0"
 #endif
 
+#ifndef LUSOFW_FIRMWARE_VERSION
+#define LUSOFW_FIRMWARE_VERSION "v0.0.1"
+#endif
+
 #define FIRMWARE_ROLE "repeater"
 
 #define PACKET_LOG_FILE  "/packet_log"
