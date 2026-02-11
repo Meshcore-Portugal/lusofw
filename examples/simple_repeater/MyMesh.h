@@ -68,16 +68,18 @@ struct NeighbourInfo {
   int8_t snr; // multiplied by 4, user should divide to get float value
 };
 
+// FIRMWARE_VERSION
+// We reuse the FIRMWARE_BUILD_DATE macro for the 'original version' string
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE   "29 Jan 2026"
+  #define FIRMWARE_BUILD_DATE "29 Jan 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION   "v1.12.0"
+  #define FIRMWARE_VERSION "v1.12.0"
 #endif
 
 #ifndef LUSOFW_FIRMWARE_VERSION
-#define LUSOFW_FIRMWARE_VERSION "v0.0.1"
+  #define LUSOFW_FIRMWARE_VERSION "v0.0.1"
 #endif
 
 #define FIRMWARE_ROLE "repeater"
