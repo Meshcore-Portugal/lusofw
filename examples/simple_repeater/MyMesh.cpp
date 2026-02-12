@@ -832,6 +832,11 @@ void MyMesh::begin(FILESYSTEM *fs) {
   // TODO: key_store.begin();
   region_map.load(_fs);
 
+  // Ensure default region exists
+  if (!region_map.findByName("#portugal")) {
+    region_map.putRegion("#portugal", region_map.getWildcard().id);
+  }
+
 #if defined(WITH_BRIDGE)
   if (_prefs.bridge_enabled) {
     bridge.begin();
