@@ -60,8 +60,18 @@
 
 #define LAZY_CONTACTS_WRITE_DELAY    5000
 
+#define NEIGHBOUR_EXPIRY_SECS        (60 * 60 * 24 * 2) // 2 days
+
 void MyMesh::putNeighbour(const mesh::Identity &id, uint32_t timestamp, float snr) {
 #if MAX_NEIGHBOURS // check if neighbours enabled
+  uint32_t now = getRTCClock()->getCurrentTime();
+  for (int i = 0; i < MAX_NEIGHBOURS; i++) {
+    // Cleanup old neighbours
+    if (now >= neighbours[i].heard_timestamp && now - neighbours[i].heard_timestamp > NEIGHBOUR_EXPIRY_SECS) {
+      memset(&neighbours[i], 0, sizeof(NeighbourInfo));
+    }
+  }
+
   // find existing neighbour, else use least recently updated
   uint32_t oldest_timestamp = 0xFFFFFFFF;
   NeighbourInfo *neighbour = &neighbours[0];
@@ -789,10 +799,10 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.interference_threshold = 0; // disabled
 
   // bridge defaults
-  _prefs.bridge_enabled = 0;    // enabled
+  _prefs.bridge_enabled = 1;    // enabled
   _prefs.bridge_delay   = 500;  // milliseconds
   _prefs.bridge_pkt_src = 0;    // logTx
-  _prefs.bridge_baud = 115200;  // baud rate
+  _prefs.bridge_baud = 57600;   // baud rate
   _prefs.bridge_channel = 1;    // channel 1
 
   StrHelper::strncpy(_prefs.bridge_secret, "LVSITANOS", sizeof(_prefs.bridge_secret));
