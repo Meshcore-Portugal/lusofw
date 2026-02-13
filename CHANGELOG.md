@@ -1,18 +1,20 @@
 # Changelog
 
-## [Unreleased]
+## [v0.0.1] - 13/02/2026
 
-Based on upstream MeshCore dev@bcb7a8067e56b602dd434865f4542890a4d35446.
+Based on upstream MeshCore dev@3f33455b4d96426b2f8b462b48ff1d4e31de1bf8.
 
 ### Features
 
-- Disable advertising functionality during system initialization
-- Implement hardware support for T114 sensor modules
-- Enforce duty cycle limits using token bucket algorithm
-- Enable CLI boosted gain settings for SX126X radio modules (LNA)
-- Configure bridge mode to be disabled by default
 - Change default configuration to use 433 MHz frequency band
+- Configure bridge mode to be disabled by default
+- Disable advertising functionality during system initialization
 - Disable all sensor features and interfaces except BME280, BMP280 and INA3221
+- Enable CLI boosted gain settings for SX126X radio modules (LNA)
+- Enforce duty cycle limits using token bucket algorithm
+- Implement hardware support for T114 sensor modules
+- Neighbours older than 48h will be automatically removed.
+- The #portugal region is added and set as flood by default.
 
 ### CLI commands
 
