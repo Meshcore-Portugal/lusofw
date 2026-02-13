@@ -832,9 +832,15 @@ void MyMesh::begin(FILESYSTEM *fs) {
   // TODO: key_store.begin();
   region_map.load(_fs);
 
-  // Ensure default region exists
-  if (!region_map.findByName("#portugal")) {
-    region_map.putRegion("#portugal", region_map.getWildcard().id);
+  // Ensure default region exists and allow flood
+  auto region = region_map.findByName("#portugal");
+
+  if (!region) {
+    region = region_map.putRegion("#portugal", region_map.getWildcard().id);
+  }
+  
+  if (region) {
+    region->flags &= ~REGION_DENY_FLOOD; // Always clear the deny flood flag to allow flooding
   }
 
 #if defined(WITH_BRIDGE)
