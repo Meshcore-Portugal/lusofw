@@ -302,6 +302,7 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
 
       // create copy of neighbours list, skipping empty entries so we can sort it separately from main list
       int16_t neighbours_count = 0;
+#if MAX_NEIGHBOURS
       NeighbourInfo* sorted_neighbours[MAX_NEIGHBOURS];
       for (int i = 0; i < MAX_NEIGHBOURS; i++) {
         auto neighbour = &neighbours[i];
@@ -337,6 +338,7 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
           return a->snr < b->snr; // asc
         });
       }
+#endif
 
       // build results buffer
       int results_count = 0;
@@ -351,6 +353,7 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
           break;
         }
 
+#if MAX_NEIGHBOURS
         // add next neighbour to results
         auto neighbour = sorted_neighbours[index + offset];
         uint32_t heard_seconds_ago = getRTCClock()->getCurrentTime() - neighbour->heard_timestamp;
@@ -358,6 +361,7 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
         memcpy(&results_buffer[results_offset], &heard_seconds_ago, 4); results_offset += 4;
         memcpy(&results_buffer[results_offset], &neighbour->snr, 1); results_offset += 1;
         results_count++;
+#endif
 
       }
 
@@ -720,19 +724,20 @@ bool MyMesh::onPeerPathRecv(mesh::Packet *packet, int sender_idx, const uint8_t 
 #define CTL_TYPE_NODE_DISCOVER_REQ   0x80
 #define CTL_TYPE_NODE_DISCOVER_RESP  0x90
 
-void MyMesh::onControlDataRecv(mesh::Packet* packet) {
+void MyMesh::onControlDataRecv(mesh::Packet *packet) {
 #if !defined(ENABLE_STEALTH_MODE)
-  uint8_t type = packet->payload[0] & 0xF0;    // just test upper 4 bits
-  if (type == CTL_TYPE_NODE_DISCOVER_REQ && packet->payload_len >= 6
-      && !_prefs.disable_fwd && discover_limiter.allow(rtc_clock.getCurrentTime())
-  ) {
+  uint8_t type = packet->payload[0] & 0xF0; // just test upper 4 bits
+  if (type == CTL_TYPE_NODE_DISCOVER_REQ && packet->payload_len >= 6 && !_prefs.disable_fwd &&
+      discover_limiter.allow(rtc_clock.getCurrentTime())) {
     int i = 1;
-    uint8_t  filter = packet->payload[i++];
+    uint8_t filter = packet->payload[i++];
     uint32_t tag;
-    memcpy(&tag, &packet->payload[i], 4); i += 4;
+    memcpy(&tag, &packet->payload[i], 4);
+    i += 4;
     uint32_t since;
-    if (packet->payload_len >= i+4) {   // optional since field
-      memcpy(&since, &packet->payload[i], 4); i += 4;
+    if (packet->payload_len >= i + 4) { // optional since field
+      memcpy(&since, &packet->payload[i], 4);
+      i += 4;
     } else {
       since = 0;
     }
@@ -740,17 +745,61 @@ void MyMesh::onControlDataRecv(mesh::Packet* packet) {
     if ((filter & (1 << ADV_TYPE_REPEATER)) != 0 && _prefs.discovery_mod_timestamp >= since) {
       bool prefix_only = packet->payload[0] & 1;
       uint8_t data[6 + PUB_KEY_SIZE];
-      data[0] = CTL_TYPE_NODE_DISCOVER_RESP | ADV_TYPE_REPEATER;   // low 4-bits for node type
-      data[1] = packet->_snr;   // let sender know the inbound SNR ( x 4)
-      memcpy(&data[2], &tag, 4);     // include tag from request, for client to match to
+      data[0] = CTL_TYPE_NODE_DISCOVER_RESP | ADV_TYPE_REPEATER; // low 4-bits for node type
+      data[1] = packet->_snr;                                    // let sender know the inbound SNR ( x 4)
+      memcpy(&data[2], &tag, 4); // include tag from request, for client to match to
       memcpy(&data[6], self_id.pub_key, PUB_KEY_SIZE);
       auto resp = createControlData(data, prefix_only ? 6 + 8 : 6 + PUB_KEY_SIZE);
       if (resp) {
-        sendZeroHop(resp, getRetransmitDelay(resp)*4);  // apply random delay (widened x4), as multiple nodes can respond to this
+        sendZeroHop(resp, getRetransmitDelay(resp) *
+                              4); // apply random delay (widened x4), as multiple nodes can respond to this
       }
     }
-  }
+  } else
 #endif
+  if (type == CTL_TYPE_NODE_DISCOVER_RESP && packet->payload_len >= 6) {
+    uint8_t node_type = packet->payload[0] & 0x0F;
+    if (node_type != ADV_TYPE_REPEATER) {
+      return;
+    }
+    if (packet->payload_len < 6 + PUB_KEY_SIZE) {
+      MESH_DEBUG_PRINTLN("onControlDataRecv: DISCOVER_RESP pubkey too short: %d",
+                         (uint32_t)packet->payload_len);
+      return;
+    }
+
+    if (pending_discover_tag == 0 || millisHasNowPassed(pending_discover_until)) {
+      pending_discover_tag = 0;
+      return;
+    }
+    uint32_t tag;
+    memcpy(&tag, &packet->payload[2], 4);
+    if (tag != pending_discover_tag) {
+      return;
+    }
+
+    mesh::Identity id(&packet->payload[6]);
+    if (id.matches(self_id)) {
+      return;
+    }
+    putNeighbour(id, rtc_clock.getCurrentTime(), packet->getSNR());
+  }
+}
+
+void MyMesh::sendNodeDiscoverReq() {
+  uint8_t data[10];
+  data[0] = CTL_TYPE_NODE_DISCOVER_REQ; // prefix_only=0
+  data[1] = (1 << ADV_TYPE_REPEATER);
+  getRNG()->random(&data[2], 4); // tag
+  memcpy(&pending_discover_tag, &data[2], 4);
+  pending_discover_until = futureMillis(60000);
+  uint32_t since = 0;
+  memcpy(&data[6], &since, 4);
+
+  auto pkt = createControlData(data, sizeof(data));
+  if (pkt) {
+    sendZeroHop(pkt);
+  }
 }
 
 MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondClock &ms, mesh::RNG &rng,
@@ -783,7 +832,7 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.airtime_factor = 1.0;
   _prefs.rx_delay_base = 0.0f;   // turn off by default, was 10.0;
   _prefs.tx_delay_factor = 0.5f; // was 0.25f
-  _prefs.direct_tx_delay_factor = 0.2f; // was zero
+  _prefs.direct_tx_delay_factor = 0.3f; // was 0.2
   StrHelper::strncpy(_prefs.node_name, ADVERT_NAME, sizeof(_prefs.node_name));
   _prefs.node_lat = ADVERT_LAT;
   _prefs.node_lon = ADVERT_LON;
@@ -813,6 +862,9 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.advert_loc_policy = ADVERT_LOC_PREFS;
 
   _prefs.adc_multiplier = 0.0f; // 0.0f means use default board multiplier
+
+  pending_discover_tag = 0;
+  pending_discover_until = 0;
 
 #if defined(USE_SX1262) || defined(USE_SX1268)
 #ifdef SX126X_RX_BOOSTED_GAIN
@@ -1204,6 +1256,15 @@ void MyMesh::handleCommand(uint32_t sender_timestamp, char *command, char *reply
       }
     } else {
       strcpy(reply, "Err - ??");
+    }
+  } else if (memcmp(command, "discover.neighbors", 18) == 0) {
+    const char* sub = command + 18;
+    while (*sub == ' ') sub++;
+    if (*sub != 0) {
+      strcpy(reply, "Err - discover.neighbors has no options");
+    } else {
+      sendNodeDiscoverReq();
+      strcpy(reply, "OK - Discover sent");
     }
   } else{
     _cli.handleCommand(sender_timestamp, command, reply);  // common CLI commands

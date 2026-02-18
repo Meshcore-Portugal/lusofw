@@ -71,11 +71,11 @@ struct NeighbourInfo {
 // FIRMWARE_VERSION
 // We reuse the FIRMWARE_BUILD_DATE macro for the 'original version' string
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE "29 Jan 2026"
+  #define FIRMWARE_BUILD_DATE "15 Feb 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION "v1.12.0"
+  #define FIRMWARE_VERSION "v1.13.0"
 #endif
 
 #ifndef LUSOFW_FIRMWARE_VERSION
@@ -103,6 +103,8 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
   RegionEntry* load_stack[8];
   RegionEntry* recv_pkt_region;
   RateLimiter discover_limiter, anon_limiter;
+  uint32_t pending_discover_tag;
+  unsigned long pending_discover_until;
   bool region_load_active;
   unsigned long dirty_contacts_expiry;
 #if MAX_NEIGHBOURS
@@ -122,6 +124,7 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
 #endif
 
   void putNeighbour(const mesh::Identity& id, uint32_t timestamp, float snr);
+  void sendNodeDiscoverReq();
   uint8_t handleLoginReq(const mesh::Identity& sender, const uint8_t* secret, uint32_t sender_timestamp, const uint8_t* data, bool is_flood);
   uint8_t handleAnonRegionsReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data);
   uint8_t handleAnonOwnerReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data);
