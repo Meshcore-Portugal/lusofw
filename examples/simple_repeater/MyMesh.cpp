@@ -97,6 +97,39 @@ void MyMesh::putNeighbour(const mesh::Identity &id, uint32_t timestamp, float sn
 #endif
 }
 
+void MyMesh::applyTimeConsensus() {
+  uint32_t now = getRTCClock()->getCurrentTime();
+  int32_t valid_offsets[TIME_SYNC_SAMPLES];
+  int valid_count = 0;
+  
+  for (int i = 0; i < TIME_SYNC_SAMPLES; i++) {
+    if (time_samples[i].sampled_at > 0) {
+      valid_offsets[valid_count++] = time_samples[i].offset;
+    }
+  }
+  
+  if (valid_count < 5) return;
+  
+  for (int i = 0; i < valid_count - 1; i++) {
+    for (int j = 0; j < valid_count - i - 1; j++) {
+      if (valid_offsets[j] > valid_offsets[j + 1]) {
+        int32_t temp = valid_offsets[j];
+        valid_offsets[j] = valid_offsets[j + 1];
+        valid_offsets[j + 1] = temp;
+      }
+    }
+  }
+  
+  int32_t median = valid_offsets[valid_count / 2];
+  
+  if (median > 5) {
+    getRTCClock()->setCurrentTime(now + median);
+    MESH_DEBUG_PRINTLN("Time sync: adjusted +%d seconds", median);
+    memset(time_samples, 0, sizeof(time_samples));
+    time_sample_idx = 0;
+  }
+}
+
 uint8_t MyMesh::handleLoginReq(const mesh::Identity& sender, const uint8_t* secret, uint32_t sender_timestamp, const uint8_t* data, bool is_flood) {
   ClientInfo* client = NULL;
   if (data[0] == 0) {   // blank password, just check if sender is in ACL
@@ -595,6 +628,25 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
     AdvertDataParser parser(app_data, app_data_len);
     if (parser.isValid() && parser.getType() == ADV_TYPE_REPEATER) { // just keep neigbouring Repeaters
       putNeighbour(id, timestamp, packet->getSNR());
+      
+      uint32_t now = getRTCClock()->getCurrentTime();
+      bool found = false;
+      for (int i = 0; i < TIME_SYNC_SAMPLES; i++) {
+        if (memcmp(time_samples[i].sender_prefix, id.pub_key, 4) == 0) {
+          if (now - time_samples[i].sampled_at > 3600) {
+            time_samples[i].offset = (int32_t)timestamp - (int32_t)now;
+            time_samples[i].sampled_at = now;
+          }
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        memcpy(time_samples[time_sample_idx].sender_prefix, id.pub_key, 4);
+        time_samples[time_sample_idx].offset = (int32_t)timestamp - (int32_t)now;
+        time_samples[time_sample_idx].sampled_at = now;
+        time_sample_idx = (time_sample_idx + 1) % TIME_SYNC_SAMPLES;
+      }
     }
   }
 }
@@ -826,6 +878,9 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 #if MAX_NEIGHBOURS
   memset(neighbours, 0, sizeof(neighbours));
 #endif
+  memset(time_samples, 0, sizeof(time_samples));
+  time_sample_idx = 0;
+  next_time_sync = 0;
 
   // defaults
   memset(&_prefs, 0, sizeof(_prefs));
@@ -912,6 +967,7 @@ void MyMesh::begin(FILESYSTEM *fs) {
 
   updateAdvertTimer();
   updateFloodAdvertTimer();
+  next_time_sync = futureMillis(300000);
 
   board.setAdcMultiplier(_prefs.adc_multiplier);
 
@@ -1289,6 +1345,11 @@ void MyMesh::loop() {
     if (pkt) sendZeroHop(pkt);
 
     updateAdvertTimer(); // schedule next local advert
+  }
+
+  if (next_time_sync && millisHasNowPassed(next_time_sync)) {
+    applyTimeConsensus();
+    next_time_sync = futureMillis(300000);
   }
 
   if (set_radio_at && millisHasNowPassed(set_radio_at)) { // apply pending (temporary) radio params
