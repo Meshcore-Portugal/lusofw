@@ -628,25 +628,28 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
     AdvertDataParser parser(app_data, app_data_len);
     if (parser.isValid() && parser.getType() == ADV_TYPE_REPEATER) { // just keep neigbouring Repeaters
       putNeighbour(id, timestamp, packet->getSNR());
-      
-      uint32_t now = getRTCClock()->getCurrentTime();
-      bool found = false;
-      for (int i = 0; i < TIME_SYNC_SAMPLES; i++) {
-        if (memcmp(time_samples[i].sender_prefix, id.pub_key, 4) == 0) {
-          if (now - time_samples[i].sampled_at > 3600) {
-            time_samples[i].offset = (int32_t)timestamp - (int32_t)now;
-            time_samples[i].sampled_at = now;
-          }
-          found = true;
-          break;
+    }
+  }
+
+  // limit time sync samples to 4 hops max
+  if (packet->path_len < 5 && !isShare(packet)) {
+    uint32_t now = getRTCClock()->getCurrentTime();
+    bool found = false;
+    for (int i = 0; i < TIME_SYNC_SAMPLES; i++) {
+      if (memcmp(time_samples[i].sender_prefix, id.pub_key, 4) == 0) {
+        if (now - time_samples[i].sampled_at > 3600) {
+          time_samples[i].offset = (int32_t)timestamp - (int32_t)now;
+          time_samples[i].sampled_at = now;
         }
+        found = true;
+        break;
       }
-      if (!found) {
-        memcpy(time_samples[time_sample_idx].sender_prefix, id.pub_key, 4);
-        time_samples[time_sample_idx].offset = (int32_t)timestamp - (int32_t)now;
-        time_samples[time_sample_idx].sampled_at = now;
-        time_sample_idx = (time_sample_idx + 1) % TIME_SYNC_SAMPLES;
-      }
+    }
+    if (!found) {
+      memcpy(time_samples[time_sample_idx].sender_prefix, id.pub_key, 4);
+      time_samples[time_sample_idx].offset = (int32_t)timestamp - (int32_t)now;
+      time_samples[time_sample_idx].sampled_at = now;
+      time_sample_idx = (time_sample_idx + 1) % TIME_SYNC_SAMPLES;
     }
   }
 }
