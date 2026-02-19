@@ -632,7 +632,8 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
   }
 
   // limit time sync samples to 4 hops max
-  if (packet->path_len < 5 && !isShare(packet)) {
+  // ignore timestamps before year 2026 (Unix timestamp 1767225600)
+  if (timestamp >= 1767225600 && packet->path_len < 5 && !isShare(packet)) {
     uint32_t now = getRTCClock()->getCurrentTime();
     bool found = false;
     for (int i = 0; i < TIME_SYNC_SAMPLES; i++) {
@@ -640,6 +641,9 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
         if (now - time_samples[i].sampled_at > 3600) {
           time_samples[i].offset = (int32_t)timestamp - (int32_t)now;
           time_samples[i].sampled_at = now;
+          MESH_DEBUG_PRINTLN("Time sample updated: [%02X%02X%02X%02X] ts=%u offset=%d", 
+                             id.pub_key[0], id.pub_key[1], id.pub_key[2], id.pub_key[3], 
+                             timestamp, time_samples[i].offset);
         }
         found = true;
         break;
@@ -649,6 +653,9 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
       memcpy(time_samples[time_sample_idx].sender_prefix, id.pub_key, 4);
       time_samples[time_sample_idx].offset = (int32_t)timestamp - (int32_t)now;
       time_samples[time_sample_idx].sampled_at = now;
+      MESH_DEBUG_PRINTLN("Time sample added: [%02X%02X%02X%02X] ts=%u offset=%d idx=%d", 
+                         id.pub_key[0], id.pub_key[1], id.pub_key[2], id.pub_key[3], 
+                         timestamp, time_samples[time_sample_idx].offset, time_sample_idx);
       time_sample_idx = (time_sample_idx + 1) % TIME_SYNC_SAMPLES;
     }
   }
