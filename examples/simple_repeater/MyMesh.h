@@ -131,6 +131,8 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
   TimeSample time_samples[TIME_SYNC_SAMPLES];
   uint8_t time_sample_idx;
   unsigned long next_time_sync;
+  uint8_t adverts_sent_today;
+  uint8_t last_advert_day;
 
   void putNeighbour(const mesh::Identity& id, uint32_t timestamp, float snr);
   void sendNodeDiscoverReq();

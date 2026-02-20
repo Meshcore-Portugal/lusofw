@@ -64,7 +64,7 @@
 
 #define ADVERTS_ALLOWED_START        2  // hours
 #define ADVERTS_ALLOWED_END          7  // hours
-#define ADVERTS_JITTER               15 // minutes
+#define ADVERTS_COUNTS               3
 
 void MyMesh::putNeighbour(const mesh::Identity &id, uint32_t timestamp, float snr) {
 #if MAX_NEIGHBOURS // check if neighbours enabled
@@ -955,6 +955,8 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   memset(time_samples, 0, sizeof(time_samples));
   time_sample_idx = 0;
   next_time_sync = 0;
+  adverts_sent_today = 0;
+  last_advert_day = 0;
 
   // defaults
   memset(&_prefs, 0, sizeof(_prefs));
@@ -1108,9 +1110,61 @@ void MyMesh::updateFloodAdvertTimer() {
     next_flood_advert = 0; // stop the timer
   }
 #else
-  uint32_t base_interval_ms = ((uint32_t)1) * 60 * 60 * 1000;
-  next_flood_advert = futureMillis(base_interval_ms);
-  MESH_DEBUG_PRINTLN("Flood advert timer scheduled: base_interval=1 hour (DISABLE_LEGACY_ADVERT mode)");
+  uint32_t now = getRTCClock()->getCurrentTime();
+  DateTime dt = DateTime(now);
+  uint8_t current_hour = dt.hour();
+  uint8_t current_day = dt.day();
+  
+  // Reset counter if we've rolled over to a new day
+  if (current_day != last_advert_day) {
+    adverts_sent_today = 0;
+    last_advert_day = current_day;
+    MESH_DEBUG_PRINTLN("Advert counter reset for new day (day=%d)", current_day);
+  }
+  
+  // Check if we're within the allowed window and haven't hit the daily limit
+  if (current_hour >= ADVERTS_ALLOWED_START && current_hour <= ADVERTS_ALLOWED_END && 
+      adverts_sent_today < ADVERTS_COUNTS) {
+    // We're in the window and can still send adverts
+    // Spread remaining adverts evenly across remaining window time
+    uint8_t remaining_adverts = ADVERTS_COUNTS - adverts_sent_today;
+    uint32_t remaining_window_seconds = (ADVERTS_ALLOWED_END - current_hour) * 3600;
+    
+    // Calculate interval for next advert (in seconds, with some randomization to avoid bunching)
+    uint32_t interval_seconds = remaining_window_seconds / remaining_adverts;
+    if (interval_seconds > 300) {
+      // Add some jitter: ±15% to spread them out a bit
+      int32_t jitter = (getRNG()->nextInt(0, 31) - 15) * interval_seconds / 100;
+      interval_seconds += jitter;
+    }
+    
+    uint32_t interval_ms = interval_seconds * 1000;
+    next_flood_advert = futureMillis(interval_ms);
+    MESH_DEBUG_PRINTLN("Flood advert scheduled in window: adverts_sent_today=%d, remaining=%d, interval=%u ms", 
+                       adverts_sent_today, remaining_adverts, interval_ms);
+  } else {
+    // Outside window or already hit daily limit
+    // Schedule for next window start (at ADVERTS_ALLOWED_START hour tomorrow or later today)
+    uint32_t next_window_start_seconds;
+    
+    if (current_hour >= ADVERTS_ALLOWED_END) {
+      // After window has ended for today, schedule for tomorrow's window start
+      uint32_t hours_until_tomorrow = (24 - current_hour) + ADVERTS_ALLOWED_START;
+      next_window_start_seconds = hours_until_tomorrow * 3600;
+    } else if (current_hour < ADVERTS_ALLOWED_START) {
+      // Before window starts today, schedule for today's window start
+      uint32_t hours_until_window = ADVERTS_ALLOWED_START - current_hour;
+      next_window_start_seconds = hours_until_window * 3600;
+    } else {
+      // We're in the window but already sent ADVERTS_COUNTS - wait until tomorrow
+      uint32_t hours_until_tomorrow = (24 - current_hour) + ADVERTS_ALLOWED_START;
+      next_window_start_seconds = hours_until_tomorrow * 3600;
+    }
+    
+    uint32_t interval_ms = next_window_start_seconds * 1000;
+    next_flood_advert = futureMillis(interval_ms);
+    MESH_DEBUG_PRINTLN("Flood advert scheduled for next window: %u seconds away", next_window_start_seconds);
+  }
 #endif
 }
 
@@ -1438,20 +1492,34 @@ void MyMesh::loop() {
     uint32_t now = getRTCClock()->getCurrentTime();
     DateTime dt = DateTime(now);
     uint8_t current_hour = dt.hour();
+    uint8_t current_day = dt.day();
     uint8_t current_minute = dt.minute();
 
-    MESH_DEBUG_PRINTLN("Flood advert timer triggered. Current time: %02d:%02d", current_hour, current_minute);
+    // Reset counter if we've rolled over to a new day
+    if (current_day != last_advert_day) {
+      adverts_sent_today = 0;
+      last_advert_day = current_day;
+      MESH_DEBUG_PRINTLN("Advert counter reset for new day (day=%d)", current_day);
+    }
 
-    if (current_hour >= ADVERTS_ALLOWED_START && current_hour <= ADVERTS_ALLOWED_END) {
-      MESH_DEBUG_PRINTLN("Hour %d is within allowed range [%d-%d], sending flood advert", current_hour, ADVERTS_ALLOWED_START, ADVERTS_ALLOWED_END);
+    MESH_DEBUG_PRINTLN("Flood advert timer triggered. Current time: %02d:%02d, sent today: %d/%d", 
+                       current_hour, current_minute, adverts_sent_today, ADVERTS_COUNTS);
+
+    if (current_hour >= ADVERTS_ALLOWED_START && current_hour <= ADVERTS_ALLOWED_END && 
+        adverts_sent_today < ADVERTS_COUNTS) {
+      MESH_DEBUG_PRINTLN("Hour %d is within allowed range [%d-%d] and count (%d<%d), sending flood advert", 
+                         current_hour, ADVERTS_ALLOWED_START, ADVERTS_ALLOWED_END, adverts_sent_today, ADVERTS_COUNTS);
       mesh::Packet *pkt = createSelfAdvert();
       if (pkt) {
         sendFlood(pkt);
+        adverts_sent_today++;
+        MESH_DEBUG_PRINTLN("Advert sent, count now: %d/%d", adverts_sent_today, ADVERTS_COUNTS);
       } else {
         MESH_DEBUG_PRINTLN("ERROR: Failed to create self advertisement packet");
       }
     } else {
-      MESH_DEBUG_PRINTLN("Hour %d is outside allowed range [%d-%d], skipping flood advert", current_hour, ADVERTS_ALLOWED_START, ADVERTS_ALLOWED_END);
+      MESH_DEBUG_PRINTLN("Skipping advert: hour=%d, window=[%d-%d], count=%d/%d", 
+                         current_hour, ADVERTS_ALLOWED_START, ADVERTS_ALLOWED_END, adverts_sent_today, ADVERTS_COUNTS);
     }
 
     updateFloodAdvertTimer(); // schedule next flood advert
