@@ -62,6 +62,10 @@
 
 #define NEIGHBOUR_EXPIRY_SECS        (60 * 60 * 24 * 2) // 2 days
 
+#define ADVERTS_ALLOWED_START        2  // hours
+#define ADVERTS_ALLOWED_END          7  // hours
+#define ADVERTS_JITTER               15 // minutes
+
 void MyMesh::putNeighbour(const mesh::Identity &id, uint32_t timestamp, float snr) {
 #if MAX_NEIGHBOURS // check if neighbours enabled
   uint32_t now = getRTCClock()->getCurrentTime();
@@ -437,12 +441,64 @@ bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
     MESH_DEBUG_PRINTLN("allowPacketForward: unknown transport code, or wildcard not allowed for FLOOD packet");
     return false;
   }
+
+#ifdef DISABLE_LEGACY_ADVERT
   // Limit flood advert paket forwarding using a probabilistic reduction defined by P(h) = 0.308^(hops-1)
   // https://github.com/meshcore-dev/MeshCore/issues/1223
-  double_t roll_dice = (double)rand() / RAND_MAX;
-  double_t forw_prob = pow(_prefs.flood_advert_base, packet->path_len - 1);
-  if (packet->getPayloadType() == PAYLOAD_TYPE_ADVERT && packet->isRouteFlood() && roll_dice > forw_prob)
-    return false;
+  if (packet->getPayloadType() == PAYLOAD_TYPE_ADVERT && packet->isRouteFlood()) {
+
+    uint32_t now = getRTCClock()->getCurrentTime();
+    DateTime dt = DateTime(now);
+    uint8_t current_hour = dt.hour();
+
+    if (current_hour >= ADVERTS_ALLOWED_START && current_hour <= ADVERTS_ALLOWED_END) {
+      MESH_DEBUG_PRINTLN("Flood advert: within allowed advert window, allowing forward");
+      return true; // Always adverts through during allowed hours
+    }
+
+    // Advert payload structure: [pub_key(32)][timestamp(4)][signature(64)][app_data...]
+    const int app_data_offset = PUB_KEY_SIZE + 4 + SIGNATURE_SIZE; // 32 + 4 + 64 = 100
+
+    if (packet->payload_len > app_data_offset &&
+        (packet->payload[app_data_offset] & 0x0F) == ADV_TYPE_REPEATER) {
+      // Use local validated value to avoid modifying preferences in packet-forwarding logic
+      float base_value = _prefs.flood_advert_base;
+      if (base_value <= 0.0f || base_value > 1.0f) {
+        MESH_DEBUG_PRINTLN("WARNING: Invalid flood_advert_base=%.3f, using default 0.308",
+                           base_value);
+        base_value = 0.308f;
+      }
+
+      if (packet->path_len == 0) {
+        MESH_DEBUG_PRINTLN("Flood advert: path_len=0, allowing forward");
+        return true; // Always allow zero-hop adverts through
+      }
+
+      double_t roll_dice = (double)rand() / RAND_MAX;
+      double_t forw_prob = pow(base_value, packet->path_len - 1);
+      MESH_DEBUG_PRINTLN("Flood advert filter: path_len=%d, roll=%.3f, prob=%.3f, base=%.3f",
+                         packet->path_len, roll_dice, forw_prob, base_value);
+
+      if (roll_dice > forw_prob) {
+        MESH_DEBUG_PRINTLN("Flood advert REJECTED by probabilistic filter");
+        return false;
+      } else {
+        MESH_DEBUG_PRINTLN("Flood advert ACCEPTED for forwarding");
+      }
+
+    }
+#ifdef MESH_DEBUG    
+    else if (packet->payload_len > app_data_offset) {
+      uint8_t adv_type = packet->payload[app_data_offset] & 0x0F;
+      MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: type=%d (not REPEATER=%d)", adv_type,
+                         ADV_TYPE_REPEATER);
+    } else {
+      MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: payload_len=%d too short (need >%d)",
+                         packet->payload_len, app_data_offset);
+    }
+#endif
+  }
+#endif
 
   // all other packets
   return true;
@@ -1030,10 +1086,6 @@ void MyMesh::sendSelfAdvertisement(int delay_millis, bool flood) {
     MESH_DEBUG_PRINTLN("ERROR: unable to create advertisement packet!");
   }
 }
-
-#define ADVERTS_ALLOWED_START 2 // hours
-#define ADVERTS_ALLOWED_END   7 // hours
-#define ADVERTS_JITTER        15 // minutes
 
 void MyMesh::updateAdvertTimer() {
 #ifndef DISABLE_LEGACY_ADVERT

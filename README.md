@@ -19,11 +19,14 @@ This is not intended to be a hard fork of the upstream repository. Instead, luso
 
 - Change default configuration to use 433 MHz frequency band
 - Configure bridge mode to be disabled by default
+- Consensus time sync over the network based on advert data
 - Disable advertising functionality during system initialization
-- Disable all sensor features and interfaces except BME280, BMP280 and INA3221
+- Disable all sensor features and interfaces except AHTx0, BME280, BMP280 and INA3221
 - Enable CLI boosted gain settings for SX126X radio modules (LNA)
 - Enforce duty cycle limits using token bucket algorithm
 - Implement hardware support for T114 sensor modules
+- Limit repeater flood advert packet forwarding using a probabilistic reduction
+- Limit repeater flood adverts to the maintenance window between 02:00 to 07:00
 - Neighbours older than 48h will be automatically removed.
 - The #portugal region is added and set as flood by default.
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.0.2] - 19/02/2026
+
+Based on upstream MeshCore dev@bbc5f0c11a1fbf613cac4f10525cfe60699c7373.
+
+### Features
+
+- Enable AHTx0 sensors
+- Heltec v4 build error fix
+- Consensus time sync over the network based on advert data
+- Limit repeater flood advert packet forwarding using a probabilistic reduction
+- Limit repeater flood adverts to the maintenance window between 02:00 to 07:00
+
+### CLI commands
+
+- `get flood.advert.base`
+- `set flood.advert.base <0-1>`: defaults to 0.308f
+
+------
+
 ## [v0.0.1] - 13/02/2026
 
 Based on upstream MeshCore dev@3f33455b4d96426b2f8b462b48ff1d4e31de1bf8.
