@@ -1022,20 +1022,35 @@ void MyMesh::sendSelfAdvertisement(int delay_millis, bool flood) {
   }
 }
 
+#define ADVERTS_ALLOWED_START 2 // hours
+#define ADVERTS_ALLOWED_END   7 // hours
+#define ADVERTS_JITTER        15 // minutes
+
 void MyMesh::updateAdvertTimer() {
+#ifndef DISABLE_LEGACY_ADVERT
   if (_prefs.advert_interval > 0) { // schedule local advert timer
     next_local_advert = futureMillis(((uint32_t)_prefs.advert_interval) * 2 * 60 * 1000);
   } else {
     next_local_advert = 0; // stop the timer
   }
+#else
+  next_local_advert = 0; // stop the timer
+  MESH_DEBUG_PRINTLN("Local advert timer disabled (DISABLE_LEGACY_ADVERT mode)");
+#endif
 }
 
 void MyMesh::updateFloodAdvertTimer() {
+#ifndef DISABLE_LEGACY_ADVERT
   if (_prefs.flood_advert_interval > 0) { // schedule flood advert timer
     next_flood_advert = futureMillis(((uint32_t)_prefs.flood_advert_interval) * 60 * 60 * 1000);
   } else {
     next_flood_advert = 0; // stop the timer
   }
+#else
+  uint32_t base_interval_ms = ((uint32_t)1) * 60 * 60 * 1000;
+  next_flood_advert = futureMillis(base_interval_ms);
+  MESH_DEBUG_PRINTLN("Flood advert timer scheduled: base_interval=1 hour (DISABLE_LEGACY_ADVERT mode)");
+#endif
 }
 
 void MyMesh::dumpLogFile() {
@@ -1344,11 +1359,12 @@ void MyMesh::loop() {
 
   mesh::Mesh::loop();
 
+#ifndef DISABLE_LEGACY_ADVERT
   if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
     if (pkt) sendFlood(pkt);
 
-    updateFloodAdvertTimer(); // schedule next flood advert
+    updateFloodAdvertTimer(); // schedule next flood advert1
     updateAdvertTimer();      // also schedule local advert (so they don't overlap)
   } else if (next_local_advert && millisHasNowPassed(next_local_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
@@ -1356,6 +1372,30 @@ void MyMesh::loop() {
 
     updateAdvertTimer(); // schedule next local advert
   }
+#else
+  if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
+    uint32_t now = getRTCClock()->getCurrentTime();
+    DateTime dt = DateTime(now);
+    uint8_t current_hour = dt.hour();
+    uint8_t current_minute = dt.minute();
+
+    MESH_DEBUG_PRINTLN("Flood advert timer triggered. Current time: %02d:%02d", current_hour, current_minute);
+
+    if (current_hour >= ADVERTS_ALLOWED_START && current_hour <= ADVERTS_ALLOWED_END) {
+      MESH_DEBUG_PRINTLN("Hour %d is within allowed range [%d-%d], sending flood advert", current_hour, ADVERTS_ALLOWED_START, ADVERTS_ALLOWED_END);
+      mesh::Packet *pkt = createSelfAdvert();
+      if (pkt) {
+        sendFlood(pkt);
+      } else {
+        MESH_DEBUG_PRINTLN("ERROR: Failed to create self advertisement packet");
+      }
+    } else {
+      MESH_DEBUG_PRINTLN("Hour %d is outside allowed range [%d-%d], skipping flood advert", current_hour, ADVERTS_ALLOWED_START, ADVERTS_ALLOWED_END);
+    }
+
+    updateFloodAdvertTimer(); // schedule next flood advert
+  }
+#endif
 
   if (next_time_sync && millisHasNowPassed(next_time_sync)) {
     applyTimeConsensus();
