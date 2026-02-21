@@ -445,7 +445,9 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
           strcpy(reply, "Error: interval range is 3-168 hours");
         } else {
           _prefs->flood_advert_interval = (uint8_t)(hours);
+#ifndef DISABLE_LEGACY_ADVERT
           _callbacks->updateFloodAdvertTimer();
+#endif
           savePrefs();
           strcpy(reply, "OK");
         }

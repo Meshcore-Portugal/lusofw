@@ -85,7 +85,7 @@ struct TimeSample {
 #endif
 
 #ifndef LUSOFW_FIRMWARE_VERSION
-  #define LUSOFW_FIRMWARE_VERSION "v0.0.2"
+  #define LUSOFW_FIRMWARE_VERSION "v0.0.3"
 #endif
 
 #define FIRMWARE_ROLE "repeater"
@@ -131,8 +131,9 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
   TimeSample time_samples[TIME_SYNC_SAMPLES];
   uint8_t time_sample_idx;
   unsigned long next_time_sync;
-  uint8_t adverts_sent_today;
-  uint8_t last_advert_day;
+  // new advert system variables
+  unsigned long next_advert_check;
+  uint8_t adverts_sent;
 
   void putNeighbour(const mesh::Identity& id, uint32_t timestamp, float snr);
   void sendNodeDiscoverReq();
