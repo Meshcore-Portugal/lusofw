@@ -943,9 +943,11 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 {
   last_millis = 0;
   uptime_millis = 0;
+  
   adverts_sent = 0;
-  next_advert_check = futureMillis(1000);
-  next_local_advert = next_flood_advert = 0;
+  next_advert_check = futureMillis(30000);
+  next_local_advert = next_flood_advert = next_flood_advert_offset = 0;
+
   dirty_contacts_expiry = 0;
   set_radio_at = revert_radio_at = 0;
   _logging = false;
@@ -1108,26 +1110,23 @@ void MyMesh::updateAdvertTimer() {
 void MyMesh::updateFloodAdvertTimer() {
 #ifndef DISABLE_LEGACY_ADVERT
   if (_prefs.flood_advert_interval > 0) { // schedule flood advert timer
-    next_flood_advert = futureMillis(((uint32_t)_prefs.flood_advert_interval) * 60 * 60 * 1000);
+    next_flood_advert = futureMillis((uint32_t)(_prefs.flood_advert_interval) * 60 * 60 * 1000);
   } else {
     next_flood_advert = 0; // stop the timer
   }
 #else
-  const uint32_t base_interval_ms =
-      (ADVERTS_ALLOWED_END - ADVERTS_ALLOWED_START + 1) * 3600 * 1000 / ADVERTS_ALLOWED_COUNT;
-  const uint32_t interval_lower_bound = adverts_sent * base_interval_ms;
-  const uint32_t interval_upper_bound = (adverts_sent + 1) * base_interval_ms;
-  adverts_sent++;
-  uint32_t interval;
-  if (interval_upper_bound > interval_lower_bound) {
-    interval = getRNG()->nextInt(interval_lower_bound, interval_upper_bound);
-  } else {
-    // Fallback in case of misconfiguration (e.g., base_interval_ms == 0)
-    interval = interval_lower_bound;
-  }
-  next_flood_advert = futureMillis(interval);
-  MESH_DEBUG_PRINTLN("ADVERTS: Flood advert timer: base=%u, lower=%u, upper=%u, selected=%u", 
-                     base_interval_ms, interval_lower_bound, interval_upper_bound, interval);
+  const uint32_t interval_upper_bound =
+      ((ADVERTS_ALLOWED_END - ADVERTS_ALLOWED_START + 1) * 60 * 60 / ADVERTS_ALLOWED_COUNT) - 60;
+  const uint32_t interval_lower_bound = 60; // 1 minute
+
+  uint32_t interval = getRNG()->nextInt(interval_lower_bound, interval_upper_bound);
+  next_flood_advert = futureMillis((interval + next_flood_advert_offset) * 1000);
+
+  MESH_DEBUG_PRINTLN(
+      "%s updateFloodAdvertTimer: lower=%u, upper=%u, selected=%u, offset=%u (sec)",
+      getLogDateTime(), interval_lower_bound, interval_upper_bound, interval, next_flood_advert_offset);
+
+  next_flood_advert_offset = interval_upper_bound - interval;
 #endif
 }
 
@@ -1442,7 +1441,7 @@ void MyMesh::loop() {
     mesh::Packet *pkt = createSelfAdvert();
     if (pkt) sendFlood(pkt);
 
-    updateFloodAdvertTimer(); // schedule next flood advert1
+    updateFloodAdvertTimer(); // schedule next flood advert
     updateAdvertTimer();      // also schedule local advert (so they don't overlap)
   } else if (next_local_advert && millisHasNowPassed(next_local_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
@@ -1452,45 +1451,42 @@ void MyMesh::loop() {
   }
 #else
   if (next_advert_check && millisHasNowPassed(next_advert_check)) {
-    next_advert_check = futureMillis(60000); // check every minute
+    next_advert_check = futureMillis(10 * 1000); // check every 10 seconds
 
     uint32_t now = getRTCClock()->getCurrentTime();
     DateTime dt = DateTime(now);
     uint8_t current_hour = dt.hour();
-    
-    MESH_DEBUG_PRINTLN("ADVERTS: Check hour=%d, sent=%d/%d, scheduled=%d", 
-                       current_hour, adverts_sent, ADVERTS_ALLOWED_COUNT, (next_flood_advert > 0));
 
     if (current_hour >= ADVERTS_ALLOWED_START && current_hour <= ADVERTS_ALLOWED_END) {
-      if (adverts_sent >= ADVERTS_ALLOWED_COUNT) {
-        // already sent max allowed adverts in this period
-        MESH_DEBUG_PRINTLN("ADVERTS: Max count reached (%d), skipping", ADVERTS_ALLOWED_COUNT);
-        return; 
-      }
+      MESH_DEBUG_PRINTLN("%s AdvertWindowCheck: hour=%d, adverts_sent=%d/%d, scheduled=%d, wait=%d",
+                         getLogDateTime(), current_hour, adverts_sent, ADVERTS_ALLOWED_COUNT,
+                         (next_flood_advert > 0), (next_flood_advert ? (int)(next_flood_advert - millis()) : 0));
 
-      if (next_flood_advert == 0) {
-        // no advert currently scheduled, so schedule one
-        MESH_DEBUG_PRINTLN("ADVERTS: Scheduling new advert");
-        updateFloodAdvertTimer();
-      }
 
       if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
-        MESH_DEBUG_PRINTLN("ADVERTS: Sending flood advert (%d/%d)", adverts_sent + 1, ADVERTS_ALLOWED_COUNT);
+        MESH_DEBUG_PRINTLN("%s Sending flood advert (%d/%d)", getLogDateTime(), adverts_sent + 1, ADVERTS_ALLOWED_COUNT);
         mesh::Packet *pkt = createSelfAdvert();
-
-        if (pkt) {
-          sendFlood(pkt);
-        } else {
-          MESH_DEBUG_PRINTLN("ERROR: Failed to create self advertisement packet");
-        }
-
-        updateFloodAdvertTimer(); // schedule next flood advert
+        if (pkt) sendFlood(pkt);
+        next_flood_advert = 0;
+        adverts_sent++;
       }
+
+      if (adverts_sent >= ADVERTS_ALLOWED_COUNT) {
+        // already sent max allowed adverts in this period
+        MESH_DEBUG_PRINTLN("%s Max advert count reached (%d) for current period, skipping", getLogDateTime(),
+                           ADVERTS_ALLOWED_COUNT);
+        return;
+      }
+      
+      if (next_flood_advert == 0) {
+        // no advert currently scheduled, so schedule one
+        updateFloodAdvertTimer();
+      }
+    } else if (adverts_sent > 0) {
+      adverts_sent = 0;
+      next_flood_advert = 0;
+      next_flood_advert_offset = 0;
     }
-  } else {
-    // reset counters
-    adverts_sent = 0;
-    next_flood_advert = 0;
   }
 #endif
 

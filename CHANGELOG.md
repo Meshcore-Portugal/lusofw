@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.0.4] - 22/02/2026
+
+Based on upstream MeshCore dev@bbc5f0c11a1fbf613cac4f10525cfe60699c7373.
+
+### Features
+
+- Further logic improvement of the repeater flood adverts limiter,
+
+------
+
+## [v0.0.3] - 21/02/2026
+
+Based on upstream MeshCore dev@bbc5f0c11a1fbf613cac4f10525cfe60699c7373.
+
+### Features
+
+- Fix errors with the repeater flood adverts limiter,
+
+------
+
 ## [v0.0.2] - 19/02/2026
 
 Based on upstream MeshCore dev@bbc5f0c11a1fbf613cac4f10525cfe60699c7373.
@@ -10,7 +30,7 @@ Based on upstream MeshCore dev@bbc5f0c11a1fbf613cac4f10525cfe60699c7373.
 - Heltec v4 build error fix
 - Consensus time sync over the network based on advert data
 - Limit repeater flood advert packet forwarding using a probabilistic reduction
-- Limit repeater flood adverts to the maintenance window between 02:00 to 07:00
+- Limit repeater flood adverts to the maintenance window between 02:00 to 06:00
 
 ### CLI commands
 
