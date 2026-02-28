@@ -68,7 +68,7 @@ struct NeighbourInfo {
   int8_t snr; // multiplied by 4, user should divide to get float value
 };
 
-#define TIME_SYNC_SAMPLES 8
+#define TIME_SYNC_SAMPLES 16
 
 struct TimeSample {
   uint8_t sender_prefix[4];

@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased]
+
+Based on upstream MeshCore dev@b67decfba06bbcafbb6909157b46a37c09106930.
+
+### Features
+
+- Improved time consensus algorithm with trimmed mean approach for better outlier rejection
+- Time sync now distinguishes initial sync (unlimited forward) vs maintenance sync (±60s limit)
+- Extended time sync sample collection to accept adverts up to 9 hops (was 4)
+- Flood advert filter now applies to all non-CHAT advert types (was REPEATER only)
+- Increased time sync sample buffer from 8 to 16 samples
+- Improved debug logging with human-readable DateTime formatting
+
+### Devcontainer
+
+- Added Bun feature for development environment
+- Changed USB mount from volume to device passthrough
+- Added opencode CLI installation
+
+------
+
 ## [v0.0.4] - 22/02/2026
 
 Based on upstream MeshCore dev@bbc5f0c11a1fbf613cac4f10525cfe60699c7373.

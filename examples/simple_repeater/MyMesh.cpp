@@ -101,19 +101,56 @@ void MyMesh::putNeighbour(const mesh::Identity &id, uint32_t timestamp, float sn
 #endif
 }
 
+/**
+ * Apply time consensus algorithm to synchronize local clock with mesh peers.
+ * 
+ * This function collects time offset samples from neighboring peers (recorded
+ * when receiving their advertisements) and computes a consensus adjustment.
+ * 
+ * Algorithm overview:
+ * 1. Collect valid time offset samples from time_samples[] array
+ * 2. Sort offsets to enable outlier removal
+ * 3. Calculate trimmed mean (discard 25% from each end) to reject outliers
+ * 4. Apply adjustment with different rules for initial vs maintenance sync
+ * 
+ * Two sync modes:
+ * - INITIAL SYNC: When local clock is before 2026-01-01 (1767225600), the RTC
+ *   has not been set. Allow unlimited forward adjustment to catch up with the
+ *   network, but never go backward.
+ * - MAINTENANCE SYNC: Clock is valid, apply symmetric ±60 second limits to
+ *   prevent large jumps while allowing correction of both fast and slow drift.
+ * 
+ * The trimmed mean approach (vs simple median) provides better noise rejection
+ * when we have multiple samples, as it averages the central values while
+ * discarding extreme outliers on both ends.
+ * 
+ * Time samples are collected in onAdvertRecv() from peer advertisements.
+ * Each sample represents: peer_timestamp - local_timestamp at time of receipt.
+ */
 void MyMesh::applyTimeConsensus() {
   uint32_t now = getRTCClock()->getCurrentTime();
+  
+  // Determine sync mode based on whether clock has been set to a reasonable time
+  // 1767225600 = 2026-01-01 00:00:00 UTC (matches filter in onAdvertRecv)
+  bool is_initial_sync = (now < 1767225600);
+  
   int32_t valid_offsets[TIME_SYNC_SAMPLES];
   int valid_count = 0;
   
+  // Collect valid time offset samples (offset > 0 means peer is ahead of us)
   for (int i = 0; i < TIME_SYNC_SAMPLES; i++) {
     if (time_samples[i].sampled_at > 0) {
       valid_offsets[valid_count++] = time_samples[i].offset;
     }
   }
   
-  if (valid_count < 5) return;
-  
+  // Minimum sample requirement depends on sync mode:
+  // - Initial sync: 5 samples (sync faster to catch up with network)
+  // - Maintenance sync: full TIME_SYNC_SAMPLES for more reliable consensus
+  int min_samples = is_initial_sync ? 5 : TIME_SYNC_SAMPLES;
+  if (valid_count < min_samples) return;
+
+  // Bubble sort offsets to enable trimmed mean calculation
   for (int i = 0; i < valid_count - 1; i++) {
     for (int j = 0; j < valid_count - i - 1; j++) {
       if (valid_offsets[j] > valid_offsets[j + 1]) {
@@ -124,13 +161,47 @@ void MyMesh::applyTimeConsensus() {
     }
   }
   
-  int32_t median = valid_offsets[valid_count / 2];
+  // Calculate trimmed mean: discard 25% from each end to remove outliers
+  // With 8 samples: trim=2, use indices [2,3,4,5] = middle 4 samples
+  // With 5 samples: trim=1, use indices [1,2,3] = middle 3 samples
+  int trim = valid_count / 4;
+  int32_t sum = 0;
+  int trimmed_count = 0;
+  for (int i = trim; i < valid_count - trim; i++) {
+    sum += valid_offsets[i];
+    trimmed_count++;
+  }
   
-  if (median > 5) {
-    getRTCClock()->setCurrentTime(now + median);
-    MESH_DEBUG_PRINTLN("Time sync: adjusted +%d seconds", median);
+  int32_t consensus = sum / trimmed_count;
+  int32_t adjustment = consensus;
+  
+  if (is_initial_sync) {
+    // INITIAL SYNC: Clock likely unset (still at default ~2024)
+    // Allow large forward jump to sync with network
+    // Never go backward - we might have partial time from a previous sync
+    if (consensus <= 0) {
+      adjustment = 0;
+    }
+    // Positive adjustments are uncapped - we need to catch up potentially years
+  } else {
+    // MAINTENANCE SYNC: Clock is valid, apply conservative limits
+    // Cap adjustments to ±60 seconds to prevent large jumps from
+    // malicious peers or temporary network issues
+    if (adjustment > 60) adjustment = 60;
+    if (adjustment < -60) adjustment = -60;
+  }
+  
+  // Apply adjustment if it exceeds the deadband threshold (±5 seconds)
+  // Small adjustments are ignored to prevent clock thrashing
+  if (adjustment != 0 && (adjustment > 5 || adjustment < -5)) {
+    getRTCClock()->setCurrentTime(now + adjustment);
+
+    // Clear all samples to force fresh collection - old offsets are now stale
     memset(time_samples, 0, sizeof(time_samples));
     time_sample_idx = 0;
+    
+    MESH_DEBUG_PRINTLN("Time sync: adjusted %d sec (consensus=%d, samples=%d, initial=%d)", 
+                       adjustment, consensus, valid_count, is_initial_sync);
   }
 }
 
@@ -469,7 +540,7 @@ bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
     const int app_data_offset = PUB_KEY_SIZE + 4 + SIGNATURE_SIZE; // 32 + 4 + 64 = 100
 
     if (packet->payload_len > app_data_offset &&
-        (packet->payload[app_data_offset] & 0x0F) == ADV_TYPE_REPEATER) {
+        (packet->payload[app_data_offset] & 0x0F) != ADV_TYPE_CHAT) {
       // Use local validated value to avoid modifying preferences in packet-forwarding logic
       float base_value = _prefs.flood_advert_base;
       if (base_value <= 0.0f || base_value > 1.0f) {
@@ -499,8 +570,7 @@ bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
 #ifdef MESH_DEBUG    
     else if (packet->payload_len > app_data_offset) {
       uint8_t adv_type = packet->payload[app_data_offset] & 0x0F;
-      MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: type=%d (not REPEATER=%d)", adv_type,
-                         ADV_TYPE_REPEATER);
+      MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: type=%d", adv_type);
     } else {
       MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: payload_len=%d too short (need >%d)",
                          packet->payload_len, app_data_offset);
@@ -707,7 +777,7 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
 
   // limit time sync samples to 4 hops max
   // ignore timestamps before year 2026 (Unix timestamp 1767225600)
-  if (timestamp >= 1767225600 && packet->path_len < 5 && !isShare(packet)) {
+  if (timestamp >= 1767225600 && packet->path_len < 10 && !isShare(packet)) {
     uint32_t now = getRTCClock()->getCurrentTime();
     bool found = false;
     for (int i = 0; i < TIME_SYNC_SAMPLES; i++) {
@@ -715,9 +785,10 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
         if (now - time_samples[i].sampled_at > 3600) {
           time_samples[i].offset = (int32_t)timestamp - (int32_t)now;
           time_samples[i].sampled_at = now;
-          MESH_DEBUG_PRINTLN("Time sample updated: [%02X%02X%02X%02X] ts=%u offset=%d", 
-                             id.pub_key[0], id.pub_key[1], id.pub_key[2], id.pub_key[3], 
-                             timestamp, time_samples[i].offset);
+          DateTime dt = DateTime(timestamp);
+          MESH_DEBUG_PRINTLN("Time sample updated: [%02X%02X] %02d:%02d:%02d - %d/%d/%d offset=%d",
+                             id.pub_key[0], id.pub_key[1], dt.hour(), dt.minute(), dt.second(), dt.day(),
+                             dt.month(), dt.year(), time_samples[i].offset);
         }
         found = true;
         break;
@@ -727,11 +798,24 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
       memcpy(time_samples[time_sample_idx].sender_prefix, id.pub_key, 4);
       time_samples[time_sample_idx].offset = (int32_t)timestamp - (int32_t)now;
       time_samples[time_sample_idx].sampled_at = now;
-      MESH_DEBUG_PRINTLN("Time sample added: [%02X%02X%02X%02X] ts=%u offset=%d idx=%d", 
-                         id.pub_key[0], id.pub_key[1], id.pub_key[2], id.pub_key[3], 
-                         timestamp, time_samples[time_sample_idx].offset, time_sample_idx);
+      DateTime dt = DateTime(timestamp);
+      MESH_DEBUG_PRINTLN("Time sample added: [%02X%02X] %02d:%02d:%02d - %d/%d/%d offset=%d idx=%d",
+                         id.pub_key[0], id.pub_key[1], dt.hour(), dt.minute(), dt.second(), dt.day(),
+                         dt.month(), dt.year(), time_samples[time_sample_idx].offset, time_sample_idx);
       time_sample_idx = (time_sample_idx + 1) % TIME_SYNC_SAMPLES;
     }
+#if MESH_DEBUG
+  } else if (packet->path_len > 0 && !isShare(packet)) {
+    // Log why advert was rejected for time sync
+    if (timestamp < 1767225600) {
+      DateTime dt = DateTime(timestamp);
+      MESH_DEBUG_PRINTLN("Time sample rejected: [%02X%02X] timestamp too old (%d/%d/%d)",
+                         id.pub_key[0], id.pub_key[1], dt.day(), dt.month(), dt.year());
+    } else if (packet->path_len >= 6) {
+      MESH_DEBUG_PRINTLN("Time sample rejected: [%02X%02X] too many hops (%d)",
+                         id.pub_key[0], id.pub_key[1], packet->path_len);
+    }
+#endif
   }
 }
 
