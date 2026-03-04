@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [v0.0.5] - 04/03/2026
 
-Based on upstream MeshCore dev@b67decfba06bbcafbb6909157b46a37c09106930.
+Based on upstream MeshCore dev@3e5522fcded70751c5a06ad1183b3eb1821397fd.
 
 ### Features
 
