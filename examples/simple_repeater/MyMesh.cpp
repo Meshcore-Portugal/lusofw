@@ -101,6 +101,7 @@ void MyMesh::putNeighbour(const mesh::Identity &id, uint32_t timestamp, float sn
 #endif
 }
 
+#ifdef ENABLE_CONSENSUS_TIME_SYNC
 /**
  * Apply time consensus algorithm to synchronize local clock with mesh peers.
  * 
@@ -204,6 +205,7 @@ void MyMesh::applyTimeConsensus() {
                        adjustment, consensus, valid_count, is_initial_sync);
   }
 }
+#endif
 
 uint8_t MyMesh::handleLoginReq(const mesh::Identity& sender, const uint8_t* secret, uint32_t sender_timestamp, const uint8_t* data, bool is_flood) {
   ClientInfo* client = NULL;
@@ -539,8 +541,10 @@ bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
     // Advert payload structure: [pub_key(32)][timestamp(4)][signature(64)][app_data...]
     const int app_data_offset = PUB_KEY_SIZE + 4 + SIGNATURE_SIZE; // 32 + 4 + 64 = 100
 
-    if (packet->payload_len > app_data_offset &&
-        (packet->payload[app_data_offset] & 0x0F) != ADV_TYPE_CHAT) {
+    // Extract advert type from app_data (lower 4 bits of first byte).
+    uint8_t adv_type = (packet->payload_len > app_data_offset) ? (packet->payload[app_data_offset] & 0x0F) : 0xFF;
+
+    if (packet->payload_len > app_data_offset && adv_type != ADV_TYPE_NONE && adv_type != ADV_TYPE_CHAT) {
       // Use local validated value to avoid modifying preferences in packet-forwarding logic
       float base_value = _prefs.flood_advert_base;
       if (base_value <= 0.0f || base_value > 1.0f) {
@@ -567,9 +571,8 @@ bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
       }
 
     }
-#ifdef MESH_DEBUG    
+#ifdef MESH_DEBUG
     else if (packet->payload_len > app_data_offset) {
-      uint8_t adv_type = packet->payload[app_data_offset] & 0x0F;
       MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: type=%d", adv_type);
     } else {
       MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: payload_len=%d too short (need >%d)",
@@ -775,9 +778,39 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
     }
   }
 
+#ifdef ENABLE_MASTER_TIME_SYNC
+  static const uint8_t MASTER_TIME_SYNC_IDENTITY[PUB_KEY_SIZE] = {
+    0x01, 0xB2, 0xF5, 0xDA, 0x46, 0xBC, 0x0A, 0x9C, 0x67, 0xFB, 0x8E, 0xDC, 0x36, 0x62, 0x57, 0xB6,
+    0x04, 0x52, 0x73, 0xB8, 0x9F, 0x37, 0xF3, 0x08, 0x04, 0x4A, 0xD5, 0x57, 0x17, 0x34, 0xD4, 0x62
+  };
+
+  // ignore timestamps before year 2026 (Unix timestamp 1767225600)
+  if (timestamp >= 1767225600 && packet->path_len < 8) {
+    AdvertDataParser parser(app_data, app_data_len);
+    if (parser.isValid() && parser.getType() == ADV_TYPE_NONE) {
+      if (memcmp(id.pub_key, MASTER_TIME_SYNC_IDENTITY, PUB_KEY_SIZE) == 0) {
+        uint32_t now = getRTCClock()->getCurrentTime();
+        int32_t diff = (int32_t)timestamp - (int32_t)now;
+        if (diff >= 30 || diff <= -30) {
+          getRTCClock()->setCurrentTime(timestamp);
+          DateTime dt = DateTime(timestamp);
+          MESH_DEBUG_PRINTLN("Master time sync: clock updated to %02d:%02d:%02d - %d/%d/%d (diff=%d sec)",
+                             dt.hour(), dt.minute(), dt.second(), dt.day(), dt.month(), dt.year(), diff);
+        } else {
+          MESH_DEBUG_PRINTLN("Master time sync: ignored small diff=%d sec (threshold=30)", diff);
+        }
+      } else {
+        MESH_DEBUG_PRINTLN("Master time sync: invalid ID [%02X%02X], ignoring timestamp", id.pub_key[0],
+                           id.pub_key[1]);
+      }
+    }
+  }
+#endif
+
+#ifdef ENABLE_CONSENSUS_TIME_SYNC
   // limit time sync samples to 4 hops max
   // ignore timestamps before year 2026 (Unix timestamp 1767225600)
-  if (timestamp >= 1767225600 && packet->path_len < 10 && !isShare(packet)) {
+  if (timestamp >= 1767225600 && packet->path_len < 8 && !isShare(packet)) {
     uint32_t now = getRTCClock()->getCurrentTime();
     bool found = false;
     for (int i = 0; i < TIME_SYNC_SAMPLES; i++) {
@@ -817,6 +850,7 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
     }
 #endif
   }
+#endif
 }
 
 void MyMesh::onPeerDataRecv(mesh::Packet *packet, uint8_t type, int sender_idx, const uint8_t *secret,
@@ -1051,9 +1085,12 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 #if MAX_NEIGHBOURS
       memset(neighbours, 0, sizeof(neighbours));
 #endif
-  memset(time_samples, 0, sizeof(time_samples));
-  time_sample_idx = 0;
-  next_time_sync = 0;
+
+#ifdef ENABLE_CONSENSUS_TIME_SYNC
+      memset(time_samples, 0, sizeof(time_samples));
+      time_sample_idx = 0;
+      next_time_sync = 0;
+#endif
 
   // defaults
   memset(&_prefs, 0, sizeof(_prefs));
@@ -1144,7 +1181,9 @@ void MyMesh::begin(FILESYSTEM *fs) {
   updateFloodAdvertTimer();
 #endif
 
+#ifdef ENABLE_CONSENSUS_TIME_SYNC
   next_time_sync = futureMillis(300000);
+#endif
 
   board.setAdcMultiplier(_prefs.adc_multiplier);
 
@@ -1585,10 +1624,12 @@ void MyMesh::loop() {
   }
 #endif
 
+#ifdef ENABLE_CONSENSUS_TIME_SYNC
   if (next_time_sync && millisHasNowPassed(next_time_sync)) {
     applyTimeConsensus();
     next_time_sync = futureMillis(300000);
   }
+#endif
 
   if (set_radio_at && millisHasNowPassed(set_radio_at)) { // apply pending (temporary) radio params
     set_radio_at = 0;                                     // clear timer

@@ -6,12 +6,21 @@ Based on upstream MeshCore dev@b67decfba06bbcafbb6909157b46a37c09106930.
 
 ### Features
 
+- Added master time synchronization feature using a network time master to sync radio clocks
+- Consensus time sync is now optional and disabled by default (replaced by master time sync)
+- Master time sync only accepts timestamps from a specific trusted identity
+- Master time sync applies to packets with path length < 8 and timestamps after 2026
 - Improved time consensus algorithm with trimmed mean approach for better outlier rejection
 - Time sync now distinguishes initial sync (unlimited forward) vs maintenance sync (±60s limit)
-- Extended time sync sample collection to accept adverts up to 9 hops (was 4)
-- Flood advert filter now applies to all non-CHAT advert types (was REPEATER only)
+- Extended time sync sample collection to accept adverts up to 8 hops (was 4)
+- Flood advert filter now applies to all non-CHAT and non-NONE advert types (was REPEATER only)
 - Increased time sync sample buffer from 8 to 16 samples
 - Improved debug logging with human-readable DateTime formatting
+
+### Build Configuration
+
+- Added `ENABLE_MASTER_TIME_SYNC` build flag (enabled by default)
+- Disabled `ENABLE_CONSENSUS_TIME_SYNC` by default (can be re-enabled if needed)
 
 ### Devcontainer
 

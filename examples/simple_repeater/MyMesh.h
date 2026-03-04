@@ -68,13 +68,15 @@ struct NeighbourInfo {
   int8_t snr; // multiplied by 4, user should divide to get float value
 };
 
-#define TIME_SYNC_SAMPLES 16
-
+#ifdef ENABLE_CONSENSUS_TIME_SYNC
 struct TimeSample {
   uint8_t sender_prefix[4];
   int32_t offset;
   uint32_t sampled_at;
 };
+
+#define TIME_SYNC_SAMPLES 16
+#endif
 
 #ifndef FIRMWARE_BUILD_DATE
   #define FIRMWARE_BUILD_DATE "15 Feb 2026"
@@ -129,9 +131,11 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
 #elif defined(WITH_ESPNOW_BRIDGE)
   ESPNowBridge bridge;
 #endif
+#ifdef ENABLE_CONSENSUS_TIME_SYNC
   TimeSample time_samples[TIME_SYNC_SAMPLES];
   uint8_t time_sample_idx;
   unsigned long next_time_sync;
+#endif
   // new advert system variables
   unsigned long next_advert_check, next_flood_advert_offset;
   uint8_t adverts_sent;
