@@ -151,6 +151,7 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
   mesh::Packet* createSelfAdvert();
 
   File openAppend(const char* fname);
+  bool isLooped(const mesh::Packet* packet, const uint8_t max_counters[]);
 
 protected:
   float getAirtimeBudgetFactor() const override {
