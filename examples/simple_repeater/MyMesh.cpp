@@ -1163,6 +1163,9 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   pending_discover_tag = 0;
   pending_discover_until = 0;
 
+  // loop detect defaults
+  _prefs.loop_detect = LOOP_DETECT_MINIMAL;
+
 #if defined(USE_SX1262) || defined(USE_SX1268)
 #ifdef SX126X_RX_BOOSTED_GAIN
   _prefs.sx126x_rx_boosted_gain = SX126X_RX_BOOSTED_GAIN;
