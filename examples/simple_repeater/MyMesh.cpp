@@ -1138,11 +1138,11 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.bw = LORA_BW;
   _prefs.cr = LORA_CR;
   _prefs.tx_power_dbm = LORA_TX_POWER;
-  _prefs.advert_interval = 1;        // default to 2 minutes for NEW installs
-  _prefs.flood_advert_interval = 12; // 12 hours
+  _prefs.advert_interval = 0;       // defaults to disabled on lusofw
+  _prefs.flood_advert_interval = 0; // defaults to disabled on lusofw
   _prefs.flood_advert_base = 0.308f;
   _prefs.flood_max = 64;
-  _prefs.interference_threshold = 0; // disabled
+  _prefs.interference_threshold = 14; // enable listen before talk
 
   // bridge defaults
   _prefs.bridge_enabled = 1;    // enabled
