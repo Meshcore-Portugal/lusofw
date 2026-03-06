@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.0.6] - 06/03/2026
+
+Based on MeshCore v1.14.0
+dev@3fe2dd7f48733fe77da7549cd24ef28bf07e1e5a
+
+### Features
+
+- Disable advert interval by default (was 2 minutes)
+- Disable flood advert interval by default (was 12 hours)
+- Enable listen before talk with interference threshold of 14
+- Refactor buildAdvertData to use prefs when no GPS support is enabled
+- Set default loop detection preference to minimal sensitivity
+- Add 0x01 to reserved identity hash prefixes
+
+------
+
 ## [v0.0.5] - 04/03/2026
 
 Based on upstream MeshCore dev@3e5522fcded70751c5a06ad1183b3eb1821397fd.
