@@ -75,7 +75,9 @@ void setup() {
     MESH_DEBUG_PRINTLN("Generating new keypair");
     the_mesh.self_id = radio_new_identity();   // create new random identity
     int count = 0;
-    while (count < 10 && (the_mesh.self_id.pub_key[0] == 0x00 || the_mesh.self_id.pub_key[0] == 0xFF)) {  // reserved id hashes
+    while (count < 10 &&
+           (the_mesh.self_id.pub_key[0] == 0x00 ||
+            the_mesh.self_id.pub_key[0] == 0x01 || the_mesh.self_id.pub_key [0] == 0xFF)) { // reserved id hashes
       the_mesh.self_id = radio_new_identity(); count++;
     }
     store.save("_main", the_mesh.self_id);
