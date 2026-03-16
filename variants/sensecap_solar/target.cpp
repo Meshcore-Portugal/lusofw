@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include "target.h"
 #include <helpers/ArduinoHelpers.h>
-
+#ifdef ENV_INCLUDE_GPS
+#include <helpers/sensors/MicroNMEALocationProvider.h>
+#endif
 SenseCapSolarBoard board;
 
 RADIO_CLASS radio = new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY, SPI);
@@ -10,7 +12,12 @@ WRAPPER_CLASS radio_driver(radio, board);
 
 VolatileRTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
-EnvironmentSensorManager sensors;
+#ifdef ENV_INCLUDE_GPS
+MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
+EnvironmentSensorManager sensors = EnvironmentSensorManager(nmea);
+#else
+EnvironmentSensorManager sensors = EnvironmentSensorManager();
+#endif
 
 bool radio_init() {
     rtc_clock.begin(Wire);
@@ -38,12 +45,3 @@ mesh::LocalIdentity radio_new_identity() {
   return mesh::LocalIdentity(&rng);  // create new random identity
 }
 
-#if defined(USE_SX1262) || defined(USE_SX1268)
-void radio_set_rx_boosted_gain_mode(bool rxbgm) {
-  radio.setRxBoostedGainMode(rxbgm);
-}
-
-bool radio_get_rx_boosted_gain_mode() {
-  return radio.getRxBoostedGainMode();
-}
-#endif

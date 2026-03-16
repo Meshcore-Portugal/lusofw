@@ -339,7 +339,7 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
   if (payload[0] == REQ_TYPE_GET_STATUS) {  // guests can also access this now
     RepeaterStats stats;
     stats.batt_milli_volts = board.getBattMilliVolts();
-    stats.curr_tx_queue_len = _mgr->getOutboundCount(0xFFFFFFFF);
+    stats.curr_tx_queue_len = _mgr->getOutboundTotal();
     stats.noise_floor = (int16_t)_radio->getNoiseFloor();
     stats.last_rssi = (int16_t)radio_driver.getLastRSSI();
     stats.n_packets_recv = radio_driver.getPacketsRecv();
@@ -1153,6 +1153,9 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 
   StrHelper::strncpy(_prefs.bridge_secret, "LVSITANOS", sizeof(_prefs.bridge_secret));
 
+  // loop detect defaults
+  _prefs.loop_detect = LOOP_DETECT_MINIMAL;
+
   // GPS defaults
   _prefs.gps_enabled = 0;
   _prefs.gps_interval = 0;
@@ -1160,19 +1163,16 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 
   _prefs.adc_multiplier = 0.0f; // 0.0f means use default board multiplier
 
-  pending_discover_tag = 0;
-  pending_discover_until = 0;
-
-  // loop detect defaults
-  _prefs.loop_detect = LOOP_DETECT_MINIMAL;
-
 #if defined(USE_SX1262) || defined(USE_SX1268)
 #ifdef SX126X_RX_BOOSTED_GAIN
-  _prefs.sx126x_rx_boosted_gain = SX126X_RX_BOOSTED_GAIN;
+  _prefs.rx_boosted_gain = SX126X_RX_BOOSTED_GAIN;
 #else
-  _prefs.sx126x_rx_boosted_gain = 1; // enabled by default;
+  _prefs.rx_boosted_gain = 1; // enabled by default;
 #endif
 #endif
+
+  pending_discover_tag = 0;
+  pending_discover_until = 0;
 }
 
 void MyMesh::begin(FILESYSTEM *fs) {
@@ -1204,11 +1204,9 @@ void MyMesh::begin(FILESYSTEM *fs) {
   radio_set_params(_prefs.freq, _prefs.bw, _prefs.sf, _prefs.cr);
   radio_set_tx_power(_prefs.tx_power_dbm);
 
-#if defined(USE_SX1262) || defined(USE_SX1268)
-  radio_set_rx_boosted_gain_mode(_prefs.sx126x_rx_boosted_gain);
-  MESH_DEBUG_PRINTLN("SX126x RX Boosted Gain Mode: %s",
-                     radio_get_rx_boosted_gain_mode() ? "Enabled" : "Disabled");
-#endif
+  radio_driver.setRxBoostedGainMode(_prefs.rx_boosted_gain);
+  MESH_DEBUG_PRINTLN("RX Boosted Gain Mode: %s",
+                     radio_driver.getRxBoostedGainMode() ? "Enabled" : "Disabled");
 
 #ifndef DISABLE_LEGACY_ADVERT
   updateAdvertTimer();
@@ -1317,6 +1315,12 @@ void MyMesh::dumpLogFile() {
 void MyMesh::setTxPower(int8_t power_dbm) {
   radio_set_tx_power(power_dbm);
 }
+
+#if defined(USE_SX1262) || defined(USE_SX1268)
+void MyMesh::setRxBoostedGain(bool enable) {
+  radio_driver.setRxBoostedGainMode(enable);
+}
+#endif
 
 void MyMesh::formatNeighborsReply(char *reply) {
   char *dp = reply;
@@ -1607,7 +1611,8 @@ void MyMesh::loop() {
 #ifndef DISABLE_LEGACY_ADVERT
   if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
-    if (pkt) sendFlood(pkt);
+    uint32_t delay_millis = 0;
+    if (pkt) sendFlood(pkt, delay_millis, _prefs.path_hash_mode + 1);
 
     updateFloodAdvertTimer(); // schedule next flood advert
     updateAdvertTimer();      // also schedule local advert (so they don't overlap)
@@ -1694,5 +1699,5 @@ bool MyMesh::hasPendingWork() const {
 #if defined(WITH_BRIDGE)
   if (bridge.isRunning()) return true;  // bridge needs WiFi radio, can't sleep
 #endif
-  return _mgr->getOutboundCount(0xFFFFFFFF) > 0;
+  return _mgr->getOutboundTotal() > 0;
 }

@@ -12,7 +12,7 @@ WRAPPER_CLASS radio_driver(radio, board);
 
 VolatileRTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
-MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1);
+MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
 NanoG2UltraSensorManager sensors = NanoG2UltraSensorManager(nmea);
 
 #ifdef DISPLAY_CLASS
@@ -141,12 +141,3 @@ mesh::LocalIdentity radio_new_identity() {
   RadioNoiseListener rng(radio);
   return mesh::LocalIdentity(&rng); // create new random identity
 }
-#if defined(USE_SX1262) || defined(USE_SX1268)
-void radio_set_rx_boosted_gain_mode(bool rxbgm) {
-  radio.setRxBoostedGainMode(rxbgm);
-}
-
-bool radio_get_rx_boosted_gain_mode() {
-  return radio.getRxBoostedGainMode();
-}
-#endif

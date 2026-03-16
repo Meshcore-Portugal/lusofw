@@ -11,7 +11,7 @@ WRAPPER_CLASS radio_driver(radio, board);
 
 ESP32RTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
-MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1);
+MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
 MASensorManager sensors = MASensorManager(nmea);
 
 #ifdef DISPLAY_CLASS
@@ -50,15 +50,6 @@ mesh::LocalIdentity radio_new_identity() {
   return mesh::LocalIdentity(&rng);  // create new random identity
 }
 
-#if defined(USE_SX1262) || defined(USE_SX1268)
-void radio_set_rx_boosted_gain_mode(bool rxbgm) {
-  radio.setRxBoostedGainMode(rxbgm);
-}
-
-bool radio_get_rx_boosted_gain_mode() {
-  return radio.getRxBoostedGainMode();
-}
-#endif
 
 void MASensorManager::start_gps() {
   if(!gps_active) {
