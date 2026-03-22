@@ -2,7 +2,7 @@
 	"name": "MeshCore",
 	"image": "mcr.microsoft.com/devcontainers/python:3-bookworm",
 	"features": {
-		"ghcr.io/devcontainers-extra/features/bun:1": {},
+		"ghcr.io/devcontainers/features/node:1": {},
 		"ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
 			"packages": [
 				"sudo"
@@ -21,6 +21,9 @@
 	"postCreateCommand": {
 		"platformio": "pipx install platformio",
 		"opencode": "curl -fsSL https://opencode.ai/install | bash"
+	},
+	"updateContentCommand": {
+		"gsd": "npx --yes get-shit-done-cc@latest --opencode --global"
 	},
 	"customizations": {
 		"vscode": {
