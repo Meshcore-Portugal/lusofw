@@ -7,6 +7,7 @@ main@467959cc3bfc884e5f3425caac89453a450151b6
 
 ### Features
 
+- Increase default airtime factor to 9.0 (targets ~10% duty cycle)
 - Set default `flood_advert_interval` to 24 hours (instead of disabled)
 - Only schedule flood advert timers when `flood_advert_interval` is greater than 0
 
