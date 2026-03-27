@@ -32,6 +32,7 @@
 #include <helpers/StaticPoolPacketManager.h>
 #include <helpers/StatsFormatHelper.h>
 #include <helpers/TxtDataHelpers.h>
+#include <helpers/FirmwareMigration.h>
 #include <helpers/RegionMap.h>
 #include "RateLimiter.h"
 
@@ -87,7 +88,7 @@ struct TimeSample {
 #endif
 
 #ifndef LUSOFW_FIRMWARE_VERSION
-  #define LUSOFW_FIRMWARE_VERSION "v0.0.6"
+  #define LUSOFW_FIRMWARE_VERSION "v0.0.7"
 #endif
 
 #define FIRMWARE_ROLE "repeater"

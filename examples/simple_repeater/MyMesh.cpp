@@ -516,6 +516,7 @@ File MyMesh::openAppend(const char *fname) {
 #endif
 }
 
+
 static uint8_t max_loop_minimal[] =  { 0, /* 1-byte */  4, /* 2-byte */  2, /* 3-byte */  1 };
 static uint8_t max_loop_moderate[] = { 0, /* 1-byte */  2, /* 2-byte */  1, /* 3-byte */  1 };
 static uint8_t max_loop_strict[] =   { 0, /* 1-byte */  1, /* 2-byte */  1, /* 3-byte */  1 };
@@ -1180,6 +1181,15 @@ void MyMesh::begin(FILESYSTEM *fs) {
   _fs = fs;
   // load persisted prefs
   _cli.loadPrefs(_fs);
+
+  char oldVersion[32];
+  FirmwareMigration::readVersion(_fs, oldVersion, sizeof(oldVersion));
+  if (strcmp(oldVersion, LUSOFW_FIRMWARE_VERSION) != 0) {
+    FirmwareMigration::applyDefaultsByVersion(oldVersion, LUSOFW_FIRMWARE_VERSION, _prefs);
+    _cli.savePrefs(_fs);
+    FirmwareMigration::writeVersion(_fs, LUSOFW_FIRMWARE_VERSION);
+  }
+
   acl.load(_fs, self_id);
   // TODO: key_store.begin();
   region_map.load(_fs);
