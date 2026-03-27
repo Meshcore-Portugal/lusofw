@@ -5,6 +5,11 @@
 Based on MeshCore v1.14.1
 main@467959cc3bfc884e5f3425caac89453a450151b6
 
+### Features
+
+- Set default `flood_advert_interval` to 24 hours (instead of disabled)
+- Only schedule flood advert timers when `flood_advert_interval` is greater than 0
+
 ## [v0.0.6] - 06/03/2026
 
 Based on MeshCore v1.14.0

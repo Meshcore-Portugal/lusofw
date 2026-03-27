@@ -1138,8 +1138,8 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.bw = LORA_BW;
   _prefs.cr = LORA_CR;
   _prefs.tx_power_dbm = LORA_TX_POWER;
-  _prefs.advert_interval = 0;       // defaults to disabled on lusofw
-  _prefs.flood_advert_interval = 0; // defaults to disabled on lusofw
+  _prefs.advert_interval = 0;        // defaults to disabled on lusofw
+  _prefs.flood_advert_interval = 24; // defaults to 24h on lusofw, when >0 enabled our custom advert handling
   _prefs.flood_advert_base = 0.308f;
   _prefs.flood_max = 64;
   _prefs.interference_threshold = 14; // enable listen before talk
@@ -1650,9 +1650,9 @@ void MyMesh::loop() {
                            ADVERTS_ALLOWED_COUNT);
         return;
       }
-      
-      if (next_flood_advert == 0) {
-        // no advert currently scheduled, so schedule one
+
+      // checks if flood adverts are disabled, or if we already have one scheduled, before scheduling next one
+      if (next_flood_advert == 0 && _prefs.flood_advert_interval > 0) {
         updateFloodAdvertTimer();
       }
     } else if (adverts_sent > 0) {
