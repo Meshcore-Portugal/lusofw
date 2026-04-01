@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.0.7] - UNRELEASED
+## [v0.0.7] - 01/04/2026
 
 Based on MeshCore v1.14.1
 main@467959cc3bfc884e5f3425caac89453a450151b6
@@ -13,6 +13,7 @@ main@467959cc3bfc884e5f3425caac89453a450151b6
 - Add version-aware defaults migration with persisted firmware version tracking
 - Apply only defaults newer than the stored version during migration
 - `radio.lna` renamed to `radio.rxgain`, use with `get` and `set`
+- Add rs232 support for Xiao NRF52 (serial1, rx(7), tx(6))
 
 ## [v0.0.6] - 06/03/2026
 
