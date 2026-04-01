@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.0.7] - 01/04/2026
+
+Based on MeshCore v1.14.1
+main@467959cc3bfc884e5f3425caac89453a450151b6
+
+### Features
+
+- Increase default airtime factor to 9.0 (targets ~10% duty cycle)
+- Set default `flood_advert_interval` to 24 hours (instead of disabled)
+- Only schedule flood advert timers when `flood_advert_interval` is greater than 0
+- Add version-aware defaults migration with persisted firmware version tracking
+- Apply only defaults newer than the stored version during migration
+- `radio.lna` renamed to `radio.rxgain`, use with `get` and `set`
+- Add rs232 support for Xiao NRF52 (serial1, rx(7), tx(6))
+
 ## [v0.0.6] - 06/03/2026
 
 Based on MeshCore v1.14.0

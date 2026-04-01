@@ -32,6 +32,7 @@
 #include <helpers/StaticPoolPacketManager.h>
 #include <helpers/StatsFormatHelper.h>
 #include <helpers/TxtDataHelpers.h>
+#include <helpers/FirmwareMigration.h>
 #include <helpers/RegionMap.h>
 #include "RateLimiter.h"
 
@@ -79,15 +80,15 @@ struct TimeSample {
 #endif
 
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE   "6 Mar 2026"
+  #define FIRMWARE_BUILD_DATE   "20 Mar 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION "v1.14.0"
+  #define FIRMWARE_VERSION "v1.14.1"
 #endif
 
 #ifndef LUSOFW_FIRMWARE_VERSION
-  #define LUSOFW_FIRMWARE_VERSION "v0.0.6"
+  #define LUSOFW_FIRMWARE_VERSION "v0.0.7"
 #endif
 
 #define FIRMWARE_ROLE "repeater"
@@ -264,8 +265,6 @@ public:
   bool hasPendingWork() const;
 
 #if defined(USE_SX1262) || defined(USE_SX1268)
-  void setRxBoostedGain(bool enable) override {
-    radio_set_rx_boosted_gain_mode(enable);
-  }
+  void setRxBoostedGain(bool enable) override;
 #endif
 };

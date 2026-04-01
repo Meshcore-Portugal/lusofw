@@ -11,7 +11,7 @@ WRAPPER_CLASS radio_driver(radio, board);
 
 VolatileRTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
-MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1);
+MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
 SolarSensorManager sensors = SolarSensorManager(nmea);
 
 #ifdef DISPLAY_CLASS
@@ -121,13 +121,3 @@ bool SolarSensorManager::setSettingValue(const char* name, const char* value) {
   }
   return false;  // not supported
 }
-
-#if defined(USE_SX1262) || defined(USE_SX1268)
-void radio_set_rx_boosted_gain_mode(bool rxbgm) {
-  radio.setRxBoostedGainMode(rxbgm);
-}
-
-bool radio_get_rx_boosted_gain_mode() {
-  return radio.getRxBoostedGainMode();
-}
-#endif

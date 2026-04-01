@@ -22,7 +22,7 @@ AutoDiscoverRTCClock rtc_clock(fallback_clock);
 
 #if ENV_INCLUDE_GPS
   #include <helpers/sensors/MicroNMEALocationProvider.h>
-  MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1);
+  MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
   EnvironmentSensorManager sensors = EnvironmentSensorManager(nmea);
 #else
   EnvironmentSensorManager sensors;
@@ -53,12 +53,3 @@ mesh::LocalIdentity radio_new_identity() {
   return mesh::LocalIdentity(&rng);  // create new random identity
 }
 
-#if defined(USE_SX1262) || defined(USE_SX1268)
-void radio_set_rx_boosted_gain_mode(bool rxbgm) {
-  radio.setRxBoostedGainMode(rxbgm);
-}
-
-bool radio_get_rx_boosted_gain_mode() {
-  return radio.getRxBoostedGainMode();
-}
-#endif

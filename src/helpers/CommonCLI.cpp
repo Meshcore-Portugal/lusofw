@@ -4,6 +4,10 @@
 #include "AdvertDataHelpers.h"
 #include <RTClib.h>
 
+#ifndef BRIDGE_MAX_BAUD
+#define BRIDGE_MAX_BAUD 115200
+#endif
+
 // Believe it or not, this std C function is busted on some platforms!
 static uint32_t _atoi(const char* sp) {
   uint32_t n = 0;
@@ -51,7 +55,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->tx_power_dbm, sizeof(_prefs->tx_power_dbm));        // 76
     file.read((uint8_t *)&_prefs->disable_fwd, sizeof(_prefs->disable_fwd));          // 77
     file.read((uint8_t *)&_prefs->advert_interval, sizeof(_prefs->advert_interval));  // 78
-    file.read((uint8_t *)&_prefs->sx126x_rx_boosted_gain, sizeof(_prefs->sx126x_rx_boosted_gain)); // 79
+    file.read((uint8_t *)&_prefs->rx_boosted_gain, sizeof(_prefs->rx_boosted_gain));  // 79
     file.read((uint8_t *)&_prefs->rx_delay_base, sizeof(_prefs->rx_delay_base));      // 80
     file.read((uint8_t *)&_prefs->tx_delay_factor, sizeof(_prefs->tx_delay_factor));  // 84
     file.read((uint8_t *)&_prefs->guest_password[0], sizeof(_prefs->guest_password)); // 88
@@ -104,7 +108,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     _prefs->bridge_enabled = constrain(_prefs->bridge_enabled, 0, 1);
     _prefs->bridge_delay = constrain(_prefs->bridge_delay, 0, 10000);
     _prefs->bridge_pkt_src = constrain(_prefs->bridge_pkt_src, 0, 1);
-    _prefs->bridge_baud = constrain(_prefs->bridge_baud, 9600, 115200);
+    _prefs->bridge_baud = constrain(_prefs->bridge_baud, 9600, BRIDGE_MAX_BAUD);
     _prefs->bridge_channel = constrain(_prefs->bridge_channel, 0, 14);
 
     _prefs->powersaving_enabled = constrain(_prefs->powersaving_enabled, 0, 1);
@@ -113,9 +117,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     _prefs->advert_loc_policy = constrain(_prefs->advert_loc_policy, 0, 2);
 
     // sanitise settings
-    _prefs->sx126x_rx_boosted_gain = constrain(_prefs->sx126x_rx_boosted_gain, 0, 1); // boolean
-
-    _prefs->flood_advert_base = constrain(_prefs->flood_advert_base, 0, 1);
+    _prefs->rx_boosted_gain = constrain(_prefs->rx_boosted_gain, 0, 1); // boolean
 
     file.close();
   }
@@ -144,7 +146,7 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
     file.write((uint8_t *)&_prefs->tx_power_dbm, sizeof(_prefs->tx_power_dbm));        // 76
     file.write((uint8_t *)&_prefs->disable_fwd, sizeof(_prefs->disable_fwd));          // 77
     file.write((uint8_t *)&_prefs->advert_interval, sizeof(_prefs->advert_interval));  // 78
-    file.write((uint8_t *)&_prefs->sx126x_rx_boosted_gain, sizeof(_prefs->sx126x_rx_boosted_gain)); // 79
+    file.write((uint8_t *)&_prefs->rx_boosted_gain, sizeof(_prefs->rx_boosted_gain));  // 79
     file.write((uint8_t *)&_prefs->rx_delay_base, sizeof(_prefs->rx_delay_base));      // 80
     file.write((uint8_t *)&_prefs->tx_delay_factor, sizeof(_prefs->tx_delay_factor));  // 84
     file.write((uint8_t *)&_prefs->guest_password[0], sizeof(_prefs->guest_password)); // 88
@@ -211,7 +213,9 @@ uint8_t CommonCLI::buildAdvertData(uint8_t node_type, uint8_t* app_data) {
 }
 
 void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, char* reply) {
-    if (memcmp(command, "reboot", 6) == 0) {
+    if (memcmp(command, "poweroff", 8) == 0 || memcmp(command, "shutdown", 8) == 0) {
+      _board->powerOff();  // doesn't return
+    } else if (memcmp(command, "reboot", 6) == 0) {
       _board->reboot();  // doesn't return
     } else if (memcmp(command, "clkreboot", 9) == 0) {
       // Reset clock
@@ -325,8 +329,8 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
       } else if (memcmp(config, "lon", 3) == 0) {
         sprintf(reply, "> %s", StrHelper::ftoa(_prefs->node_lon));
 #if defined(USE_SX1262) || defined(USE_SX1268)
-      } else if (memcmp(config, "radio.lna", 9) == 0) {
-        sprintf(reply, "> %s", _prefs->sx126x_rx_boosted_gain ? "on" : "off");
+      } else if (memcmp(config, "radio.rxgain", 12) == 0) {
+        sprintf(reply, "> %s", _prefs->rx_boosted_gain ? "on" : "off");
 #endif
       } else if (memcmp(config, "radio", 5) == 0) {
         char freq[16], bw[16];
@@ -526,11 +530,11 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         savePrefs();
         strcpy(reply, _prefs->disable_fwd ? "OK - repeat is now OFF" : "OK - repeat is now ON");
 #if defined(USE_SX1262) || defined(USE_SX1268)
-      } else if (memcmp(config, "radio.lna ", 10) == 0) {
-        _prefs->sx126x_rx_boosted_gain = memcmp(&config[10], "on", 2) == 0;
+      } else if (memcmp(config, "radio.rxgain ", 13) == 0) {
+        _prefs->rx_boosted_gain = memcmp(&config[13], "on", 2) == 0;
         strcpy(reply, "OK");
         savePrefs();
-        _callbacks->setRxBoostedGain(_prefs->sx126x_rx_boosted_gain);
+        _callbacks->setRxBoostedGain(_prefs->rx_boosted_gain);
 #endif
       } else if (memcmp(config, "radio ", 6) == 0) {
         strcpy(tmp, &config[6]);
@@ -666,13 +670,13 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
 #ifdef WITH_RS232_BRIDGE
       } else if (memcmp(config, "bridge.baud ", 12) == 0) {
         uint32_t baud = atoi(&config[12]);
-        if (baud >= 9600 && baud <= 115200) {
+        if (baud >= 9600 && baud <= BRIDGE_MAX_BAUD) {
           _prefs->bridge_baud = (uint32_t)baud;
           _callbacks->restartBridge();
           savePrefs();
           strcpy(reply, "OK");
         } else {
-          strcpy(reply, "Error: baud rate must be between 9600-115200");
+          sprintf(reply, "Error: baud rate must be between 9600-%d",BRIDGE_MAX_BAUD);
         }
 #endif
 #ifdef WITH_ESPNOW_BRIDGE
