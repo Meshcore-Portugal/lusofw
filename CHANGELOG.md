@@ -2,8 +2,8 @@
 
 ## [unreleased]
 
-Based on MeshCore v1.14.1
-main@467959cc3bfc884e5f3425caac89453a450151b6
+Based on MeshCore v1.15.0
+main@ecd0cfc1c133aad93e65257f002151591f6bcfd9
 
 ### Features
 
