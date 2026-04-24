@@ -1,5 +1,14 @@
 # Changelog
 
+## [unreleased]
+
+Based on MeshCore v1.14.1
+main@467959cc3bfc884e5f3425caac89453a450151b6
+
+### Features
+
+- Change version schema to year.month.release (2026.4.1)
+
 ## [v0.0.7] - 01/04/2026
 
 Based on MeshCore v1.14.1
