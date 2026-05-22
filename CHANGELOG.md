@@ -1,6 +1,6 @@
 # Changelog
 
-## [v2026.5.1] - 21/05/2026
+## [v2026.5.1] - 22/05/2026
 
 Based on MeshCore v1.15.0
 main@ecd0cfc1c133aad93e65257f002151591f6bcfd9

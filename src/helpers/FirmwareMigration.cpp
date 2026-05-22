@@ -3,7 +3,7 @@
 #include <MeshCore.h>
 #include <string.h>
 
-static void v2026_4_1(NodePrefs& prefs) {
+static void v2026_5_1(NodePrefs& prefs) {
   prefs.flood_advert_base = 0.308f;
 
 #if defined(USE_SX1262) || defined(USE_SX1268)
@@ -45,7 +45,7 @@ const FirmwareMigration::VersionEntry FirmwareMigration::s_versions[] = {
   { "v0.0.1", v0_0_1 },
   { "v0.0.6", v0_0_6 },
   { "v0.0.7", v0_0_7 },
-  { "2026.4.1", v2026_4_1 },
+  { "2026.5.1", v2026_5_1 },
 };
 
 int FirmwareMigration::findVersionIndex(const char* version) {
