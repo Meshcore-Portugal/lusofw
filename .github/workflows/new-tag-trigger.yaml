@@ -1,0 +1,96 @@
+name: Build lusofw
+
+          echo "LUSOFW_FIRMWARE_VERSION=${LUSOFW_FIRMWARE_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Build Firmware
+        env:
+          FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
+          LUSOFW_FIRMWARE_VERSION: ${{ env.LUSOFW_FIRMWARE_VERSION }}
+        run: /usr/bin/env bash build.sh build-firmware ${{ matrix.firmware }}
+
+      - name: Upload Firmware Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.firmware }}
+          path: out
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Compute release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            LUSOFW_FIRMWARE_VERSION=$(grep '^[[:space:]]*#define[[:space:]]\+LUSOFW_FIRMWARE_VERSION[[:space:]]\+"' examples/simple_repeater/MyMesh.h | \
+              sed -E 's/^[[:space:]]*#define[[:space:]]+LUSOFW_FIRMWARE_VERSION[[:space:]]+"([^"]+)".*/\1/')
+            SHORT_SHA=$(git rev-parse --short HEAD)
+
+            if [[ -z "${LUSOFW_FIRMWARE_VERSION}" ]]; then
+              echo "Failed to extract LUSOFW_FIRMWARE_VERSION from examples/simple_repeater/MyMesh.h"
+              exit 1
+            fi
+
+            echo "RELEASE_TAG=${LUSOFW_FIRMWARE_VERSION}-${SHORT_SHA}" >> "$GITHUB_ENV"
+            echo "CHANGELOG_TAG=${LUSOFW_FIRMWARE_VERSION}" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+            echo "CHANGELOG_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: Generate release notes from CHANGELOG
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${CHANGELOG_TAG}"
+
+          if [[ ! -f CHANGELOG.md ]]; then
+            echo "CHANGELOG.md not found; using empty release notes." > release_body.md
+            exit 0
+          fi
+
+          awk -v tag="$tag" '
+            BEGIN { capture=0 }
+            $0 ~ "^##[[:space:]]*\\[" tag "\\]" || $0 ~ "^##[[:space:]]*" tag "([[:space:]]|$)" {
+              capture=1
+              next
+            }
+            capture && $0 ~ "^##[[:space:]]" { exit }
+            capture { print }
+          ' CHANGELOG.md > release_body.md
+
+          if [[ ! -s release_body.md ]]; then
+            awk '
+              BEGIN { capture=0 }
+              /^##[[:space:]]/ {
+                if (capture == 1) exit
+                capture=1
+                next
+              }
+              capture { print }
+            ' CHANGELOG.md > release_body.md
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          body_path: release_body.md
+          draft: false
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          files: out/*
