@@ -137,6 +137,7 @@ jobs:
           - Xiao_nrf52_repeater_bridge_rs232
           - Xiao_S3_WIO_repeater
           - Xiao_S3_WIO_repeater_bridge_espnow
+          - Xiao_S3_WIO_repeater_bridge_rs232
     steps:
       - name: Clone repository
         uses: actions/checkout@v6
