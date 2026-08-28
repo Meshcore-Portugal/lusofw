@@ -246,12 +246,12 @@ const GeoPoint poly_nuts2_pt_anepc_acores[] PROGMEM = {
 };
 
 const RegionPolygon PORTUGAL_ANEPC_NUTS2[] = {
-    {"#pt-anepc-alentejo", poly_nuts2_pt_anepc_alentejo, 51},
-    {"#pt-anepc-algarve", poly_nuts2_pt_anepc_algarve, 28},
-    {"#pt-anepc-centro", poly_nuts2_pt_anepc_centro, 39},
-    {"#pt-anepc-lisboa-vale-tejo", poly_nuts2_pt_anepc_lisboa_vale_tejo, 42},
-    {"#pt-anepc-norte", poly_nuts2_pt_anepc_norte, 37},
-    {"#pt-anepc-madeira", poly_nuts2_pt_anepc_madeira, 12},
-    {"#pt-anepc-acores", poly_nuts2_pt_anepc_acores, 13}
+    {"#pt-alentejo", poly_nuts2_pt_anepc_alentejo, 51},
+    {"#pt-algarve", poly_nuts2_pt_anepc_algarve, 28},
+    {"#pt-centro", poly_nuts2_pt_anepc_centro, 39},
+    {"#pt-lisboa-vale-do-tejo", poly_nuts2_pt_anepc_lisboa_vale_tejo, 42},
+    {"#pt-norte", poly_nuts2_pt_anepc_norte, 37},
+    {"#pt-madeira", poly_nuts2_pt_anepc_madeira, 12},
+    {"#pt-acores", poly_nuts2_pt_anepc_acores, 13}
 };
 const int NUM_PORTUGAL_ANEPC_NUTS2 = 7;

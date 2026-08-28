@@ -67,9 +67,9 @@ static bool isPointInPolygon(float lat, float lon, const GeoPoint* poly, int num
 bool AutoRegions::inject_hierarchy(RegionMap& region_map, bool create_eu, bool create_pt) {
     bool changed = false;
     if (create_eu) {
-        auto r = region_map.findByName("#eu");
+        auto r = region_map.findByName("#europe");
         if (!r) {
-            r = region_map.putRegion("#eu", 0);
+            r = region_map.putRegion("#europe", 0);
             if (r) {
                 r->flags |= REGION_AUTO_ASSIGN;
                 changed = true;
@@ -98,7 +98,7 @@ bool AutoRegions::inject_hierarchy(RegionMap& region_map, bool create_eu, bool c
 
 uint16_t AutoRegions::get_parent_for_region(RegionMap& region_map, const char* name) {
     if (strcmp(name, "#pt") == 0) {
-        auto p = region_map.findByName("#eu");
+        auto p = region_map.findByName("#europe");
         return p ? p->id : 0;
     }
     if (strncmp(name, "#pt.", 4) == 0) {
@@ -275,7 +275,7 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
         }
 
         if (is_in_europe) {
-            add_valid_region("#eu");
+            add_valid_region("#europe");
         }
     } else {
         if (prefs.node_name[0] != '\0' && prefs.node_name[1] != '\0' && prefs.node_name[2] == '.') {
@@ -289,7 +289,7 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
                     is_in_portugal = true;
                     is_in_europe = true;
                     add_valid_region("#pt");
-                    add_valid_region("#eu");
+                    add_valid_region("#europe");
 
                     for (int j = 0; j < FALLBACK_REGIONS[i].num_regions; j++) {
                         const char* reg_name = FALLBACK_REGIONS[i].regions[j];
@@ -297,15 +297,15 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
                         if (strstr(reg_name, "iata") != nullptr) continue;
 #endif
 #ifndef ENABLE_REGION_NUTS2
-                        if (strcmp(reg_name, "#pt-anepc-norte") == 0 ||
-                            strcmp(reg_name, "#pt-anepc-algarve") == 0 ||
-                            strcmp(reg_name, "#pt-anepc-centro") == 0 ||
-                            strcmp(reg_name, "#pt-anepc-grande-lisboa") == 0 ||
-                            strcmp(reg_name, "#pt-anepc-peninsula-de-setubal") == 0 ||
-                            strcmp(reg_name, "#pt-anepc-alentejo") == 0 ||
-                            strcmp(reg_name, "#pt-anepc-oeste-e-vale-do-tejo") == 0 ||
-                            strcmp(reg_name, "#pt-anepc-ra-acores") == 0 ||
-                            strcmp(reg_name, "#pt-anepc-ra-madeira") == 0) {
+                        if (strcmp(reg_name, "#pt-norte") == 0 ||
+                            strcmp(reg_name, "#pt-algarve") == 0 ||
+                            strcmp(reg_name, "#pt-centro") == 0 ||
+                            strcmp(reg_name, "#pt-grande-lisboa") == 0 ||
+                            strcmp(reg_name, "#pt-peninsula-de-setubal") == 0 ||
+                            strcmp(reg_name, "#pt-alentejo") == 0 ||
+                            strcmp(reg_name, "#pt-oeste-e-vale-do-tejo") == 0 ||
+                            strcmp(reg_name, "#pt-ra-acores") == 0 ||
+                            strcmp(reg_name, "#pt-ra-madeira") == 0) {
                             continue;
                         }
 #endif
@@ -351,7 +351,7 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
     }
 
     if (!is_region_valid("#pt")) map_changed |= remove_outdated_region(region_map, "#pt");
-    if (!is_region_valid("#eu")) map_changed |= remove_outdated_region(region_map, "#eu");
+    if (!is_region_valid("#europe")) map_changed |= remove_outdated_region(region_map, "#europe");
 
     in_europe_flag = is_in_europe;
 

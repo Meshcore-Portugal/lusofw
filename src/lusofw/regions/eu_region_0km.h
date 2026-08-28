@@ -18,4 +18,4 @@ const GeoPoint EUROPE_BASE_POLYGON[] = {
     { 35.0f, -35.0f }  // SW (covers Azores and Madeira)
 };
 
-const RegionPolygon REGION_EUROPE = { "#eu", EUROPE_BASE_POLYGON, 10 };
+const RegionPolygon REGION_EUROPE = { "#europe", EUROPE_BASE_POLYGON, 10 };
