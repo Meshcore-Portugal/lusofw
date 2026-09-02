@@ -39,9 +39,11 @@
 				}
 			},
 			"extensions": [
-				"platformio.platformio-ide",
+				"Anthropic.claude-code",
 				"github.vscode-github-actions",
-				"GitHub.vscode-pull-request-github"
+				"GitHub.vscode-pull-request-github",
+				"openai.chatgpt",
+				"platformio.platformio-ide"
 			],
 			"unwantedRecommendations": [
 				"ms-vscode.cpptools-extension-pack"

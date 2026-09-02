@@ -5,6 +5,9 @@
 #if defined(ENABLE_NETWORK_TIME)
 #include "lusofw/NetTimeSync.h"   // trusted network time sync policy
 #endif
+#if defined(ENABLE_ADVERT_PROTECT)
+#include "lusofw/AdvertProtection.h"   // repeat remote repeater adverts at most once per 12h
+#endif
 #include <algorithm>
 
 /* ------------------------------ Config -------------------------------- */
@@ -685,6 +688,18 @@ static bool isShare(const mesh::Packet *packet) {
 void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32_t timestamp,
                           const uint8_t *app_data, size_t app_data_len) {
   mesh::Mesh::onAdvertRecv(packet, id, timestamp, app_data, app_data_len); // chain to super impl
+
+#if defined(ENABLE_ADVERT_PROTECT)
+  // lusofw: repeat each remote repeater's advert at most once every 12h (see
+  // lusofw/AdvertProtection.h)
+  if (packet->isRouteFlood() && !isShare(packet)) {
+    AdvertDataParser parser(app_data, app_data_len);
+    if (parser.isValid() && parser.getType() == ADV_TYPE_REPEATER
+        && !AdvertProtection::allowRepeaterAdvertRepeat(id, getRTCClock()->getCurrentTime())) {
+      packet->markDoNotRetransmit();   // not repeated; still processed locally below
+    }
+  }
+#endif
 
   // if this a zero hop advert (and not via 'Share'), add it to neighbours
   if (packet->getPathHashCount() == 0 && !isShare(packet)) {
