@@ -142,22 +142,21 @@ public:
     display.setTextSize(1);
     display.drawTextCentered(display.width() / 2, 47, _version_info);
 #else
-    // meshcore logo (128x64, centered on the display)
-    int logoX = (_display->width() - 128) / 2;
-    int logoY = (_display->height() - 64) / 2;
-    _display->setColor(UIColor::corp_blue);
-    _display->drawXbm(logoX, logoY, meshcore_portugal_logo, 128, 64);
+  // meshcore logo
+  display.setColor(UIColor::corp_blue);
+  int logoWidth = 128;
+  display.drawXbm((display.width() - logoWidth) / 2, 3, meshcore_logo, logoWidth, 13);
 
-    // meshcore website
-    const char *website = "https://meshcore.pt";
-    _display->setColor(UIColor::primary_txt);
-    _display->setTextSize(1);
-    display.drawTextCentered(display.width() / 2, logoY + 44, website);
+  // meshcore website
+  const char *website = "https://meshcore.pt";
+  display.setColor(UIColor::primary_txt);
+  display.setTextSize(1);
+  display.drawTextCentered(display.width() / 2, 35, website);
 
-    // version info
-    _display->setColor(UIColor::secondary_txt);
-    _display->setTextSize(1);
-    display.drawTextCentered(display.width() / 2, logoY + 54, _version_info);
+  // version info
+  display.setColor(UIColor::secondary_txt);
+  display.setTextSize(1);
+  display.drawTextCentered(display.width() / 2, 48, _version_info);
 #endif
     return 1000;
   }
