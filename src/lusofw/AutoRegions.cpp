@@ -296,18 +296,40 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
 #ifndef ENABLE_REGION_IATA
                         if (strstr(reg_name, "iata") != nullptr) continue;
 #endif
-#ifndef ENABLE_REGION_NUTS2
-                        if (strcmp(reg_name, "#pt-norte") == 0 ||
-                            strcmp(reg_name, "#pt-algarve") == 0 ||
-                            strcmp(reg_name, "#pt-centro") == 0 ||
-                            strcmp(reg_name, "#pt-grande-lisboa") == 0 ||
-                            strcmp(reg_name, "#pt-peninsula-de-setubal") == 0 ||
-                            strcmp(reg_name, "#pt-alentejo") == 0 ||
-                            strcmp(reg_name, "#pt-oeste-e-vale-do-tejo") == 0 ||
-                            strcmp(reg_name, "#pt-ra-acores") == 0 ||
-                            strcmp(reg_name, "#pt-ra-madeira") == 0) {
-                            continue;
+
+                        bool is_nuts2 = false;
+                        const char* nuts2_list[] = {
+                            "#pt-alentejo", "#pt-algarve", "#pt-centro", "#pt-lisboa-vale-do-tejo",
+                            "#pt-norte", "#pt-madeira", "#pt-acores"
+                        };
+                        for (int k = 0; k < 7; k++) {
+                            if (strcmp(reg_name, nuts2_list[k]) == 0) { is_nuts2 = true; break; }
                         }
+
+                        bool is_cim = false;
+                        const char* cims_list[] = {
+                            "#pt-alto-minho", "#pt-cavado", "#pt-ave", "#pt-porto", "#pt-alto-tamega-e-barroso",
+                            "#pt-tamega-e-sousa", "#pt-douro", "#pt-terras-tras-os-montes", "#pt-algarve",
+                            "#pt-regiao-de-aveiro", "#pt-regiao-de-coimbra", "#pt-regiao-de-leiria",
+                            "#pt-viseu-dao-lafoes", "#pt-beira-baixa", "#pt-beiras-e-serra-estrela",
+                            "#pt-grande-lisboa", "#pt-peninsula-de-setubal", "#pt-alentejo-litoral",
+                            "#pt-baixo-alentejo", "#pt-alto-alentejo", "#pt-alentejo-central", "#pt-oeste",
+                            "#pt-medio-tejo", "#pt-leziria-do-tejo", "#pt-acores"
+                        };
+                        for (int k = 0; k < 25; k++) {
+                            if (strcmp(reg_name, cims_list[k]) == 0) { is_cim = true; break; }
+                        }
+
+#ifndef ENABLE_REGION_NUTS2
+                        if (is_nuts2 && !is_cim) continue;
+#endif
+
+#ifndef ENABLE_REGION_CIMS
+                        if (is_cim && !is_nuts2) continue;
+#endif
+
+#if !defined(ENABLE_REGION_NUTS2) && !defined(ENABLE_REGION_CIMS)
+                        if (is_nuts2 || is_cim) continue;
 #endif
                         add_valid_region(reg_name);
                     }
