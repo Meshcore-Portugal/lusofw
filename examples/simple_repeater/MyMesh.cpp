@@ -2,6 +2,9 @@
 #if defined(ENABLE_AUTO_REGIONS)
 #include "lusofw/AutoRegions.h"
 #endif
+#if defined(ENABLE_NETWORK_TIME)
+#include "lusofw/NetTimeSync.h"   // trusted network time sync policy
+#endif
 #include <algorithm>
 
 /* ------------------------------ Config -------------------------------- */
@@ -692,64 +695,9 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
   }
 
 #ifdef ENABLE_NETWORK_TIME
-  // Trusted network time source identity. Only adverts signed by this Ed25519 key are
-  // honoured as a time source. The advert signature (covers pubkey + timestamp +
-  // appdata) authenticates the packet, but cannot by itself stop REPLAY of a
-  // previously captured, validly-signed advert -- that is handled below.
-  static const uint8_t NETWORK_TIME_IDENTITY[PUB_KEY_SIZE] = {
-    0x01, 0xB2, 0xF5, 0xDA, 0x46, 0xBC, 0x0A, 0x9C, 0x67, 0xFB, 0x8E, 0xDC, 0x36, 0x62, 0x57, 0xB6,
-    0x04, 0x52, 0x73, 0xB8, 0x9F, 0x37, 0xF3, 0x08, 0x04, 0x4A, 0xD5, 0x57, 0x17, 0x34, 0xD4, 0x62
-  };
-
-  // Reject implausible timestamps (anything before year 2026 = 1767225600) and
-  // only trust time sources heard within 8 hops (limits propagation skew/abuse).
-  if (timestamp >= 1767225600 && packet->path_len < 8) {
-    AdvertDataParser parser(app_data, app_data_len);
-    if (parser.isValid() && parser.getType() == ADV_TYPE_NONE) {
-      if (memcmp(id.pub_key, NETWORK_TIME_IDENTITY, PUB_KEY_SIZE) == 0) {
-
-        // --- Anti-replay: only accept timestamps strictly newer than the last
-        // one we ACCEPTED this boot. A captured advert re-broadcast later still
-        // carries an old (<=) timestamp and is dropped here. last_network_sync_time
-        // is RAM-only; cross-reboot safety comes from the initial-sync forward-only
-        // rule below together with the battery-backed RTC (an old replayed ts is
-        // < the preserved RTC time and so fails the forward check after reboot).
-        if (last_network_sync_time != 0 && timestamp <= last_network_sync_time) {
-          MESH_DEBUG_PRINTLN("Network time: REPLAY rejected (ts=%u <= last=%u)",
-                             timestamp, last_network_sync_time);
-        } else {
-          uint32_t now = getRTCClock()->getCurrentTime();
-          int32_t diff = (int32_t)timestamp - (int32_t)now;
-
-          // INITIAL sync = RTC not yet set (before 2026) OR no network time sync
-          // accepted yet this boot. MAINTENANCE sync = already synced.
-          //   - INITIAL    : accept any unlimited FORWARD jump (diff > 0) only.
-          //                  Rejecting backward jumps closes the replay/winding
-          //                  hole that allowed rolling the clock back in time.
-          //   - MAINTENANCE: allow only a small +/-60s correction (matches the
-          //                  CHANGELOG). A synced RTC should only drift by
-          //                  seconds; large jumps here are treated as suspicious.
-          bool initial = (now < 1767225600) || (last_network_sync_time == 0);
-          bool apply = initial ? (diff > 0) : (diff >= -60 && diff <= 60);
-
-          if (apply) {
-            getRTCClock()->setCurrentTime(timestamp);
-            last_network_sync_time = timestamp;  // advance high-water mark (accepted)
-            DateTime dt = DateTime(timestamp);
-            MESH_DEBUG_PRINTLN("Network time: %s apply, diff=%d sec -> %02d:%02d:%02d %d/%d/%d",
-                               initial ? "INITIAL" : "maintenance", diff,
-                               dt.hour(), dt.minute(), dt.second(), dt.day(), dt.month(), dt.year());
-            updateFloodAdvertTimer();  // reschedule smart advert against new clock (cf. name change)
-          } else {
-            MESH_DEBUG_PRINTLN("Network time: %s rejected (diff=%d sec)",
-                               initial ? "initial(not-forward)" : "maintenance(outside +/-60)", diff);
-          }
-        }
-      } else {
-        MESH_DEBUG_PRINTLN("Network time: invalid ID [%02X%02X], ignoring timestamp", id.pub_key[0],
-                           id.pub_key[1]);
-      }
-    }
+  if (NetTimeSync::handleTimekeeperAdvert(id, timestamp, app_data, app_data_len,
+                                          packet->path_len, *getRTCClock())) {
+    updateFloodAdvertTimer();  // reschedule smart advert against new clock (cf. name change)
   }
 #endif
 }
@@ -981,7 +929,6 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   last_millis = 0;
   uptime_millis = 0;
 
-  last_network_sync_time = 0;  // no network time sync accepted yet this boot
   next_advert_check = futureMillis(30000);
   next_local_advert = next_flood_advert = 0;
 

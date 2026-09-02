@@ -9,10 +9,15 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 
 - REPETIDOR: Atribuição automática de regiões geográficas a partir da localização do nó (coordenadas das preferências ou GPS).
 
+### Segurança
+
+- REPETIDOR: A sincronização de hora por rede aceita agora correções do relógio em qualquer direção (incluindo para trás).
+- REPETIDOR: Adicionado limite de sanidade contra saltos impossíveis para a frente (timekeeper com bug ou comprometido).
+
 ### Correções
 
 - CLIENTE: A página inicial do GPS agora fica oculta no carrossel quando nenhum GPS é detectado na porta série no arranque, em vez de aparecer sempre quando `ENV_INCLUDE_GPS` está ativado.
-- REPETIDOR: Corrigido envio de anúncios por inundação (flood adverts): agora respeita o `default_scope` e o modo de hash de caminho (`path_hash_mode` nas preferências).
+- REPETIDOR: Corrigido o envio de flood adverts: agora respeita o `default_scope` e o modo de hash de caminho (`path_hash_mode` nas preferências).
 - REPETIDOR: Removida a redução probabilística de flood adverts.
 - REPETIDOR: Corrigido um *buffer overflow* no acumulador de comandos série.
 - NRF52: Limpo o registo de retenção GPREGRET (0) no arranque e antes do SYSTEMOFF, evitando que um valor mágico de DFU residual faça o dispositivo arrancar no modo bootloader.
@@ -21,7 +26,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 
 - CLI: Adicionada a leitura do motivo de arranque do ESP32 (`get pwrmgt.bootreason`).
 - CLI: Reforçada a cópia segura de strings no tratamento de comandos.
-- RÁDIO: Ajustado o atraso de retentativa CAD para intervalo entre 120 a 360 ms.
+- RÁDIO: Ajustado o atraso de retentativa CAD para um intervalo entre 120 e 360 ms.
 
 #### Observabilidade
 

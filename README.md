@@ -20,7 +20,7 @@ lusofw layers Portugal-focused defaults and quality-of-life enhancements on top 
 - **Automatic region assignment (AutoRegions)** — repeaters derive their geographic region (EU → country → district → NUTS2/CIMS) from their stored or GPS coordinates, with no manual setup.
 - **Smart flood adverts** — deterministic, collision-resistant scheduling across a rolling 23-hour window; each node's slot is derived from its name and public key.
 - **Hardware CAD listen-before-talk** — channel activity is sensed before every transmit, enabled by default to reduce collisions.
-- **Network time synchronization** — radio clocks sync from a trusted network time source, with replay-protected, forward-only updates.
+- **Network time synchronization** — radio clocks sync from a trusted network time source, with replay-protected updates.
 - **Loop detection** — enabled by default at minimal sensitivity to prevent packet storms.
 - **Version-aware defaults migration** — firmware upgrades apply curated defaults safely, tracked by a persisted version stamp.
 - **Airtime duty-cycle enforcement** — a token bucket keeps transmissions within regulatory limits.

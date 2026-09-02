@@ -1,6 +1,7 @@
 !.env.local.example
 .env*
 
+.claude/
 .cache
 .ccls
 .direnv
