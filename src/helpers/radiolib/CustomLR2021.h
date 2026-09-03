@@ -126,5 +126,6 @@ class CustomLR2021 : public LR2021 {
       MESH_DEBUG_PRINTLN("Set _maxPayloadMillis=%u", _maxPayloadMillis);
     }
 
+
     uint8_t getSpreadingFactor() const { return spreadingFactor; }
 };

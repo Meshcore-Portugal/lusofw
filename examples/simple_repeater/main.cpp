@@ -42,10 +42,6 @@ void setup() {
   external_watchdog.begin();
 #endif
 
-#ifdef HAS_EXTERNAL_WATCHDOG
-  external_watchdog.begin();
-#endif
-
 #if defined(MESH_DEBUG) && defined(NRF52_PLATFORM)
   // give some extra time for serial to settle so
   // boot debug messages can be seen on terminal

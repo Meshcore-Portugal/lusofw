@@ -36,11 +36,11 @@ public:
 
   template<typename RadioDriverType>
   static void formatPacketStats(char* reply,
-                                RadioDriverType& driver,
-                                uint32_t n_sent_flood,
-                                uint32_t n_sent_direct,
-                                uint32_t n_recv_flood,
-                                uint32_t n_recv_direct) {
+                               RadioDriverType& driver,
+                               uint32_t n_sent_flood,
+                               uint32_t n_sent_direct,
+                               uint32_t n_recv_flood,
+                               uint32_t n_recv_direct) {
     sprintf(reply, 
       "{\"recv\":%u,\"sent\":%u,\"flood_tx\":%u,\"direct_tx\":%u,\"flood_rx\":%u,\"direct_rx\":%u,\"recv_errors\":%u}",
       driver.getPacketsRecv(),
