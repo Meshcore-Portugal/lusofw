@@ -8,6 +8,9 @@
 #if defined(ENABLE_ADVERT_PROTECT)
 #include "lusofw/AdvertProtection.h"   // repeat remote repeater adverts at most once per 12h
 #endif
+#if defined(ENABLE_SMART_ADVERTS)
+#include "lusofw/SmartAdverts.h"   // deterministic 23h rolling-window advert slots
+#endif
 #include <algorithm>
 
 /* ------------------------------ Config -------------------------------- */
@@ -1151,60 +1154,22 @@ void MyMesh::updateFloodAdvertTimer() {
     next_flood_advert = 0; // stop the timer
   }
 #else  // ENABLE_SMART_ADVERTS
-  const uint32_t WINDOW_SIZE_SECONDS = 23 * 3600; // 23 hours (Rolling Window)
-  const int32_t JITTER_MAX_SECONDS = 3; // 3 seconds Jitter to prevent advert collisions
+  const uint32_t now_epoch = getRTCClock()->getCurrentTime();
+  const uint32_t wait_seconds = SmartAdverts::nextAdvertWaitSeconds(
+      _prefs.node_name, self_id.pub_key, now_epoch, millis());
 
-  // Calculate a deterministic hash using the native SHA256 utility.
-  // This ensures the hash is uniform and unique per node based on its name and public key.
-  uint32_t hash = 0;
-  const char* name = _prefs.node_name ? _prefs.node_name : "";
+  if (now_epoch >= SmartAdverts::MIN_VALID_EPOCH) {  // RTC present: log the calendar slot
+    DateTime dt_target(now_epoch + wait_seconds);
 
-  mesh::Utils::sha256((uint8_t*)&hash, sizeof(hash), (const uint8_t*)name, strlen(name), self_id.pub_key, 4);
-
-  uint32_t my_offset = hash % WINDOW_SIZE_SECONDS;
-  uint32_t now_epoch = getRTCClock()->getCurrentTime();
-
-  // If there is no RTC (timestamp is older than Jan 1, 2020), we rely on millis() + offset + jitter
-  if (now_epoch < 1577836800) {
-      // Use uptime millis to give dynamic jitter across reboots when no RTC is present
-      int32_t random_jitter = ((hash ^ millis()) % 7) - 3;
-      uint32_t fallback_wait = my_offset + random_jitter;
-      // Prevent underflow
-      if ((int32_t)fallback_wait < 0) {
-          fallback_wait = 0;
-      }
-      next_flood_advert = futureMillis(fallback_wait * 1000);
-  } else {
-      // If we have an RTC, schedule for the next occurrence in the global calendar
-      uint32_t current_cycle_start = now_epoch - (now_epoch % WINDOW_SIZE_SECONDS);
-      uint32_t my_target_epoch = current_cycle_start + my_offset;
-      int32_t random_jitter = ((hash ^ current_cycle_start) % ((JITTER_MAX_SECONDS * 2) + 1)) - JITTER_MAX_SECONDS;
-      int64_t target_epoch = (int64_t)my_target_epoch + random_jitter;
-
-      // If the calculated target for the current cycle is already in the past or exactly right now,
-      // we must advance to the next cycle to avoid firing multiple times in a row!
-      if ((int64_t)now_epoch >= target_epoch) {
-          current_cycle_start += WINDOW_SIZE_SECONDS;
-          my_target_epoch = current_cycle_start + my_offset;
-
-          // Re-calculate jitter for the new cycle!
-          random_jitter = ((hash ^ current_cycle_start) % ((JITTER_MAX_SECONDS * 2) + 1)) - JITTER_MAX_SECONDS;
-          target_epoch = (int64_t)my_target_epoch + random_jitter;
-      }
-
-      // We are now guaranteed that target_epoch is strictly greater than now_epoch
-      uint32_t wait_seconds = (uint32_t)(target_epoch - (int64_t)now_epoch);
-      DateTime dt_target((uint32_t)target_epoch);
-
-      MESH_DEBUG_PRINTLN(
-          "%s Next smart advert will be at %04d-%02d-%02d %02d:%02d:%02d (in %d seconds)",
-          getLogDateTime(),
-          dt_target.year(), dt_target.month(), dt_target.day(),
-          dt_target.hour(), dt_target.minute(), dt_target.second(),
-          wait_seconds);
-
-      next_flood_advert = futureMillis(wait_seconds * 1000);
+    MESH_DEBUG_PRINTLN(
+        "%s Next smart advert will be at %04d-%02d-%02d %02d:%02d:%02d (in %d seconds)",
+        getLogDateTime(),
+        dt_target.year(), dt_target.month(), dt_target.day(),
+        dt_target.hour(), dt_target.minute(), dt_target.second(),
+        wait_seconds);
   }
+
+  next_flood_advert = futureMillis(wait_seconds * 1000);
 #endif
 }
 
