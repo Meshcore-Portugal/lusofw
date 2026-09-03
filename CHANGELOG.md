@@ -25,6 +25,8 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 
 #### Melhorias
 
+- CLIENTE: Extraídos para `src/lusofw/` os módulos comuns `BootScreen` (logótipo de arranque), `BatteryCurve` (curva de descarga LiPo) e `SmartAdverts` (agendamento determinístico de adverts), eliminando código duplicado entre as UIs; sem alteração de comportamento.
+- RÁDIO: Os logs de RSSI/CAD em `isChannelActive()` e o log de conclusão de TX no `Dispatcher` passaram a estar guardados pela flag `LUSOFW_RADIO_DEBUG`.
 - CLI: Adicionada a leitura do motivo de arranque do ESP32 (`get pwrmgt.bootreason`).
 - CLI: Reforçada a cópia segura de strings no tratamento de comandos.
 - RÁDIO: Ajustado o atraso de retentativa CAD para um intervalo entre 120 e 360 ms.
@@ -36,6 +38,10 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 
 #### Build e Configuração
 
+- BUILD: Adicionadas as flags `LUSOFW_LIPO_CURVE` e `LUSOFW_BOOT_LOGO_PT`, que permitem reverter a curva de bateria LiPo e o logótipo de arranque para o comportamento upstream sem editar código.
+- BUILD: Convertidos os blocos mortos `#if 0` das UIs (ui-new/ui-orig) em guards nomeados e removido código de referência duplicado.
+- BUILD: `examples/simple_room_server/MyMesh.cpp` revertido para o conteúdo upstream: novas instalações de room server passam a utilizar o intervalo de flood advert predefinido do MeshCore (47 h); as instalações existentes não são afetadas.
+- BUILD: Removidas divergências cosméticas face ao conteúdo upstream e normalizados os fins-de-linha CRLF nos variants `minewsemi_me25ls01` e `wio_wm1110`, reduzindo conflitos em futuras sincronizações.
 - BUILD: Adicionada a variável `DISABLE_DEBUG` ao processo de build.
 - BUILD: Reorganizadas as build flags no platformio.ini.
 - BUILD: Adicionado o ambiente de build da ponte RS232 (`heltec_v4_repeater_bridge_rs232`) para o Heltec v4.

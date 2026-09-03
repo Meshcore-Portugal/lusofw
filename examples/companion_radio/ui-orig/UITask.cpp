@@ -174,15 +174,15 @@ void UITask::renderBatteryIndicator(uint16_t batteryMilliVolts) {
 #ifndef BATT_MAX_MILLIVOLTS
   #define BATT_MAX_MILLIVOLTS 4200
 #endif
-#if 0
+#if defined(LUSOFW_LIPO_CURVE)
+  int batteryPercentage = BatteryCurve::lipoPercentFromMilliVolts(batteryMilliVolts);
+#else
   // linear mapping: (v - min) / (max - min)
   const int minMilliVolts = BATT_MIN_MILLIVOLTS;
   const int maxMilliVolts = BATT_MAX_MILLIVOLTS;
   int batteryPercentage = ((batteryMilliVolts - minMilliVolts) * 100) / (maxMilliVolts - minMilliVolts);
   if (batteryPercentage < 0) batteryPercentage = 0; // Clamp to 0%
   if (batteryPercentage > 100) batteryPercentage = 100; // Clamp to 100%
-#else
-  int batteryPercentage = BatteryCurve::lipoPercentFromMilliVolts(batteryMilliVolts);
 #endif
 
   // battery icon
@@ -236,7 +236,17 @@ void UITask::renderCurrScreen() {
     _display->print(tmp);
     _display->setColor(UIColor::secondary_txt); // last color will be kept on T114
   } else if ((millis() - ui_started_at) < BOOT_SCREEN_MILLIS) { // boot screen
-  #if 0
+#if defined(LUSOFW_BOOT_LOGO_PT)
+    // meshcore portugal logo (128x64, centered on the display)
+    int logoY = BootScreen::drawLogoCentered(_display);
+
+    // version info
+    _display->setColor(UIColor::primary_txt);
+    _display->setTextSize(1);
+    uint16_t textWidth = _display->getTextWidth(_version_info);
+    _display->setCursor((_display->width() - textWidth) / 2, logoY + 54);
+    _display->print(_version_info);
+#else
     // meshcore logo
     _display->setColor(UIColor::corp_blue);
     int logoWidth = 128;
@@ -247,16 +257,6 @@ void UITask::renderCurrScreen() {
     _display->setTextSize(1);
     uint16_t textWidth = _display->getTextWidth(_version_info);
     _display->setCursor((_display->width() - textWidth) / 2, 22);
-    _display->print(_version_info);
-#else
-    // meshcore logo (128x64, centered on the display)
-    int logoY = BootScreen::drawLogoCentered(_display);
-
-    // version info
-    _display->setColor(UIColor::primary_txt);
-    _display->setTextSize(1);
-    uint16_t textWidth = _display->getTextWidth(_version_info);
-    _display->setCursor((_display->width() - textWidth) / 2, logoY + 54);
     _display->print(_version_info);
 #endif
   } else {  // home screen

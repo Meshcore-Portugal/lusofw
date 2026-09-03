@@ -99,10 +99,12 @@ void Dispatcher::loop() {
       total_air_time += t;
       //Serial.print("  airtime="); Serial.println(t);
 
+#ifdef LUSOFW_RADIO_DEBUG
       MESH_DEBUG_PRINTLN("%s Dispatcher::loop(): TX complete (len=%d, airtime=%ld ms)",
                          getLogDateTime(),
                          2 + outbound->getPathByteLen() + outbound->payload_len,
                          t);
+#endif
 
       updateTxBudget();
 
