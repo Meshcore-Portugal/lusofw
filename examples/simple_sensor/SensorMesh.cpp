@@ -1,4 +1,7 @@
 #include "SensorMesh.h"
+#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#include "lusofw/InterferenceAuto.h"   // int.thresh 255 -> derive threshold from current SF
+#endif
 
 /* ------------------------------ Config -------------------------------- */
 
@@ -320,9 +323,13 @@ uint32_t SensorMesh::getDirectRetransmitDelay(const mesh::Packet* packet) {
   uint32_t t = (_radio->getEstAirtimeFor(packet->getPathByteLen() + packet->payload_len + 2) * _prefs.direct_tx_delay_factor);
   return getRNG()->nextInt(0, 6)*t;
 }
+#if defined(LUSOFW_RADIO_INT_THR_AUTO)
 int SensorMesh::getInterferenceThreshold() const {
-  return _prefs.interference_threshold;
+  // resolve against the LIVE SF so `tempradio` windows are tracked correctly
+  return InterferenceAuto::resolve(_prefs.interference_threshold,
+                                   radio_driver.getSpreadingFactor());
 }
+#endif
 bool SensorMesh::getCADEnabled() const {
   return _prefs.cad_enabled;
 }

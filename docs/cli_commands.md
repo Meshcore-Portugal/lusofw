@@ -601,10 +601,15 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `get int.thresh`
 - `set int.thresh <value>`
 
-**Parameters:**
-- `value`: Interference threshold value
+**Description:** When non-zero, the radio defers transmitting whenever the instantaneous RSSI exceeds the measured noise floor by this many dB (RSSI-based listen-before-talk). Runs independently of `cad` — either, both, or none may be active.
 
-**Default:** `0.0`
+**Parameters:**
+- `value`:
+  - `0`: disabled (default)
+  - `1`–`254`: fixed threshold in dB above the noise floor
+  - `255` (`auto`): derive the threshold from the current spreading factor (SF7→8, SF8→10, SF9→11, SF10→14, SF11/12→16 dB above the noise floor). Re-evaluated every ~2 s, so runtime SF changes (`tempradio`) and their auto-revert are followed automatically.
+
+**Default:** `0`
 
 ---
 

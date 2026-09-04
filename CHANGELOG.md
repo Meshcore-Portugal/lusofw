@@ -8,6 +8,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 ### Funcionalidades
 
 - REPETIDOR: Atribuição automática de regiões geográficas a partir da localização do nó (coordenadas das preferências ou GPS).
+- RÁDIO: Novo modo automático para o limiar de interferência (`set int.thresh 255`, `get int.thresh` responde `auto`), guardado pela flag de build `LUSOFW_RADIO_INT_THR_AUTO`.
 - REPETIDOR: Adicionada proteção de adverts (`ENABLE_ADVERT_PROTECT`): o advert de cada repetidor remoto é repetido no máximo uma vez a cada 12 horas (por chave pública); os adverts duplicados continuam a ser processados localmente, mas já não são retransmitidos. Motivado por firmware muito antigo que entra frequentemente em boot loop e gera advert storms durante horas.
 
 ### Segurança
