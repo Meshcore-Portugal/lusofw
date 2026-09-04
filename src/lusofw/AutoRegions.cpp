@@ -243,6 +243,17 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
     bool country_matched[NUM_ENABLED_COUNTRIES] = {false};
     bool is_in_europe = false;
 
+    // Overflow note: if more than 16 regions match, extras are silently dropped
+    // here — and since polygon names are added before the country names and
+    // "#europe" appended by the shared block below, overflow would drop exactly
+    // those structural entries while country_matched[]/is_in_europe stay true.
+    // The removal sweep would then delete them and inject_hierarchy recreate
+    // them on every evaluation (repeated /regions2 flash rewrites). Reaching it
+    // is possible but requires very specific conditions: a node inside more
+    // than ~14 matching polygons, which needs multiple countries' geometries
+    // to overlap (or malformed data) — districts and macro regions each
+    // partition their country, so well-formed data matches ~1 macro + ~1
+    // district per country (~4 entries with the country and "#europe").
     auto add_valid_region = [&](const char* name) {
         if (num_valid < 16) {
             valid_regions[num_valid++] = name;

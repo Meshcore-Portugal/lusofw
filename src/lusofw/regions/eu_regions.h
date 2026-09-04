@@ -26,7 +26,7 @@ static const GeoPoint poly_europe[] = {
 };
 
 static const RegionRing rings_europe[] = {
-    {poly_europe, 16},
+    {poly_europe, 15},
 };
 
 static const RegionPolygon REGION_EUROPE = { "#europe", rings_europe, 1 };
