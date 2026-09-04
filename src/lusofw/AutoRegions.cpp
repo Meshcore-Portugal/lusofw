@@ -101,6 +101,13 @@ bool AutoRegions::inject_hierarchy(RegionMap& region_map, const bool* country_ma
                 changed = true;
             }
         } else {
+            // Future improvement: re-parenting does not check for cycles. A user
+            // region reusing an auto name (e.g. '#europe' nested under '#pt') can
+            // close a cycle here; enable_region_path's hop cap keeps the walk from
+            // hanging, but the tree stays malformed until the user region is
+            // renamed. The proper fix is an ancestry check — walk from
+            // expected_parent up to the wildcard and only assign if this region
+            // is not on that chain — before accepting the new parent.
             uint16_t expected_parent = get_parent_for_region(region_map, name);
             if (r->parent != expected_parent) {
                 r->parent = expected_parent;
@@ -130,7 +137,13 @@ uint16_t AutoRegions::get_parent_for_region(RegionMap& region_map, const char* n
 bool AutoRegions::enable_region_path(RegionMap& region_map, const char* name) {
     bool changed = false;
     auto r = region_map.findByName(name);
-    while (r) {
+    // Cycle guard: a user region reusing an auto name can make the parent
+    // chain circular (e.g. '#pt' -> '#europe' -> '#pt' after inject_hierarchy
+    // re-parenting). A legitimate chain can never exceed the map's entry
+    // count, so the hop cap terminates any cycle without truncating a valid
+    // hierarchy — an unbounded walk here is a WDT reboot loop.
+    int hops = 0;
+    while (r && hops++ < MAX_REGION_ENTRIES) {
         if (r->flags & REGION_DENY_FLOOD) {
             r->flags &= ~REGION_DENY_FLOOD; // Enable flood for this region and all its parents
             changed = true;
@@ -288,9 +301,12 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
             }
         };
 
+        // First country containing the point wins (registry order): a border node
+        // joins a single country's scopes, mirroring the prefix-fallback rule.
         for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
             evaluate_polygon_array(c, ENABLED_COUNTRIES[c].macro_regions, ENABLED_COUNTRIES[c].num_macro_regions);
             evaluate_polygon_array(c, ENABLED_COUNTRIES[c].districts, ENABLED_COUNTRIES[c].num_districts);
+            if (country_matched[c]) break;
         }
     } else {
         if (prefs.node_name[0] != '\0' && prefs.node_name[1] != '\0' && prefs.node_name[2] == '.') {
