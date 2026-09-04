@@ -203,55 +203,37 @@ void AutoRegions::applyRadioRegulation(NodePrefs& prefs, float freq) {
     prefs.airtime_factor = in_europe_flag ? 9.0f : 1.0f;
 }
 
-void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs, SensorManager& sensors, FILESYSTEM* fs) {
+void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs, FILESYSTEM* fs) {
     static float last_checked_lat = -999.0f;
     static float last_checked_lon = -999.0f;
     static char last_checked_name[sizeof(prefs.node_name)] = {0};
+    static uint8_t last_loc_policy = 0xFF;
 
     static bool force_initial_check = true;
 
-    float current_lat = 0.0f;
-    float current_lon = 0.0f;
-
-    if (prefs.advert_loc_policy == ADVERT_LOC_PREFS) {
-        current_lat = prefs.node_lat;
-        current_lon = prefs.node_lon;
-    } else if (prefs.advert_loc_policy == ADVERT_LOC_SHARE) {
-        current_lat = sensors.node_lat;
-        current_lon = sensors.node_lon;
-    }
+    // Hardware GPS is deliberately not consulted — LusoFW disables GPS on all
+    // repeaters (stationary infrastructure; see the policy note in AutoRegions.h).
+    // Region assignment uses only the node's configured coordinates.
+    // Evaluation cascade, first match wins:
+    //   1. node coordinates non-zero and location policy not NONE -> polygons
+    //   2. otherwise the node-name prefix fallback
+    //   3. nothing matched -> the compile-time default coordinates, for
+    //      regulation only — no regions are created
+    bool loc_available = (prefs.node_lat != 0.0f || prefs.node_lon != 0.0f) &&
+                         prefs.advert_loc_policy != ADVERT_LOC_NONE;
+    float eval_lat = prefs.node_lat;
+    float eval_lon = prefs.node_lon;
 
     bool name_changed = (strcmp(prefs.node_name, last_checked_name) != 0);
+    bool policy_changed = (prefs.advert_loc_policy != last_loc_policy);
     bool map_changed = false;
-
-    // If the user's manual coordinates (_prefs) are 0.0, they explicitly cleared them.
-    // Unlike a physical GPS losing lock, a manual 0.0 is an explicit command to drop location.
-    // We discard the last known location and force a fallback evaluation immediately.
-    if (prefs.advert_loc_policy == ADVERT_LOC_PREFS && current_lat == 0.0f && current_lon == 0.0f &&
-        last_checked_lat != -999.0f && (last_checked_lat != 0.0f || last_checked_lon != 0.0f)) {
-        last_checked_lat = 0.0f;
-        last_checked_lon = 0.0f;
-        force_initial_check = true;
-        map_changed = true;
-    }
-
-    bool force_check = force_initial_check || (prefs.advert_loc_policy == ADVERT_LOC_NONE && (last_checked_lat != 0.0f || last_checked_lon != 0.0f));
-
-    float eval_lat = current_lat;
-    float eval_lon = current_lon;
-    if (current_lat == 0.0f && current_lon == 0.0f && last_checked_lat != -999.0f) {
-        eval_lat = last_checked_lat;
-        eval_lon = last_checked_lon;
-    }
-
-    bool has_gps = (eval_lat != 0.0f || eval_lon != 0.0f);
 
     float diff_lat = eval_lat > last_checked_lat ? eval_lat - last_checked_lat : last_checked_lat - eval_lat;
     float diff_lon = eval_lon > last_checked_lon ? eval_lon - last_checked_lon : last_checked_lon - eval_lon;
-    bool gps_changed = (diff_lat > 0.01f || diff_lon > 0.01f);
+    bool coords_changed = (diff_lat > 0.01f || diff_lon > 0.01f);
 
-    if (!force_check && !name_changed && !gps_changed) {
-        return; // No movement, no name change -> do nothing
+    if (!force_initial_check && !name_changed && !policy_changed && !coords_changed) {
+        return; // No coordinate, policy or name change -> do nothing
     }
 
     force_initial_check = false;
@@ -274,15 +256,15 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
         return false;
     };
 
-    // GPS evaluation needs compiled-in polygon data; with both hierarchy levels
-    // disabled there is none, so fall back to the name-prefix path — GPS and
-    // no-GPS nodes of the same name then get the same country assignment.
+    // Coordinate evaluation needs compiled-in polygon data; with both hierarchy
+    // levels disabled there is none, so fall back to the name-prefix path —
+    // nodes of the same name then get the same country assignment either way.
     bool has_polygon_data = false;
     for (int c = 0; c < NUM_ENABLED_COUNTRIES && !has_polygon_data; c++) {
         has_polygon_data = ENABLED_COUNTRIES[c].num_macro_regions > 0 || ENABLED_COUNTRIES[c].num_districts > 0;
     }
 
-    if (has_gps && has_polygon_data) {
+    if (loc_available && has_polygon_data) {
         auto evaluate_polygon_array = [&](int country_idx, const RegionPolygon* polys, int count) {
             for (int i = 0; i < count; i++) {
                 for (int j = 0; j < polys[i].ring_count; j++) {
@@ -328,7 +310,7 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
         }
     }
 
-    // Country regions and Europe membership, shared by the GPS and fallback paths
+    // Country regions and Europe membership, shared by the coordinate and fallback paths
     bool any_country_matched = false;
     for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
         if (!country_matched[c]) continue;
@@ -336,13 +318,22 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
         if (ENABLED_COUNTRIES[c].in_europe) is_in_europe = true;
         add_valid_region(ENABLED_COUNTRIES[c].name);
     }
-    if (has_gps && !any_country_matched) {
-        // Outside every compiled-in country: fall back to the coarse Europe polygon
-        if (isPointInPolygon(eval_lat, eval_lon, REGION_EUROPE.rings[0].points, REGION_EUROPE.rings[0].count)) {
-            is_in_europe = true;
+    bool from_defaults = false;
+    if (!any_country_matched) {
+        if (loc_available) {
+            // Outside every compiled-in country: fall back to the coarse Europe polygon
+            if (isPointInPolygon(eval_lat, eval_lon, REGION_EUROPE.rings[0].points, REGION_EUROPE.rings[0].count)) {
+                is_in_europe = true;
+            }
+        } else {
+            // Nothing matched: regulation follows the compile-time defaults only
+            from_defaults = true;
+            if (isPointInPolygon(ADVERT_LAT, ADVERT_LON, REGION_EUROPE.rings[0].points, REGION_EUROPE.rings[0].count)) {
+                is_in_europe = true;
+            }
         }
     }
-    if (is_in_europe) {
+    if (is_in_europe && !from_defaults) {
         add_valid_region("#europe");
     }
 
@@ -373,21 +364,18 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
 
     // Now apply all valid regions
     if (num_valid > 0) {
-        map_changed |= inject_hierarchy(region_map, country_matched, is_in_europe);
+        map_changed |= inject_hierarchy(region_map, country_matched, is_in_europe && !from_defaults);
         for (int i = 0; i < num_valid; i++) {
             map_changed |= apply_dynamic_region(region_map, valid_regions[i], get_parent_for_region(region_map, valid_regions[i]));
             // MESH_DEBUG_PRINTLN("Auto-Region Assign: %s", valid_regions[i]);
         }
     }
 
-    // Update RAM state unconditionally so we don't re-evaluate immediately
-    if (force_check || gps_changed || name_changed) {
-        if (has_gps) {
-            last_checked_lat = eval_lat;
-            last_checked_lon = eval_lon;
-        }
-        StrHelper::strncpy(last_checked_name, prefs.node_name, sizeof(last_checked_name));
-    }
+    // Update RAM state so we don't re-evaluate immediately
+    last_checked_lat = prefs.node_lat;
+    last_checked_lon = prefs.node_lon;
+    StrHelper::strncpy(last_checked_name, prefs.node_name, sizeof(last_checked_name));
+    last_loc_policy = prefs.advert_loc_policy;
 
     // Only write to flash if the tree actually changed
     if (map_changed) {

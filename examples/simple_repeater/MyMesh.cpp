@@ -1060,7 +1060,7 @@ void MyMesh::begin(FILESYSTEM *fs) {
 
 #if defined(ENABLE_AUTO_REGIONS)
   // Evaluate and assign initial geographical regions based on GPS coordinates
-  AutoRegions::checkRegionAutoAssign(region_map, _prefs, sensors, _fs);
+  AutoRegions::checkRegionAutoAssign(region_map, _prefs, _fs);
 #endif
 
 #if defined(WITH_BRIDGE)
@@ -1293,7 +1293,7 @@ void MyMesh::onNodeConfigChanged() {
 #if defined(ENABLE_AUTO_REGIONS)
   // Re-evaluate and reassign geographical regions based on the new name/coordinates
   // (manual radio commands latch prefs.radio_manual themselves in CommonCLI)
-  AutoRegions::checkRegionAutoAssign(region_map, _prefs, sensors, _fs);
+  AutoRegions::checkRegionAutoAssign(region_map, _prefs, _fs);
   // The re-evaluation may have re-derived tx power — apply it to the radio
   radio_driver.setTxPower(_prefs.tx_power_dbm);
 #endif

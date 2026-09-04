@@ -58,13 +58,19 @@ struct CountryRegions {
 
 // Automatic geographical region assignment.
 //
-// This module is intentionally decoupled from any specific application class:
-// callers pass the RegionMap, NodePrefs, SensorManager and filesystem it should
-// operate on. It depends only on MeshCore library types, so it can be compiled
-// into any firmware environment without pulling in an app-specific header.
+// Hardware GPS is deliberately not consulted: LusoFW disables GPS support on
+// all repeaters, as repeaters are stationary pieces of infrastructure. If
+// that policy ever changes, AutoRegions must be adapted to use coordinates
+// provided by GPS hardware. Until then, evaluation uses the node's configured
+// coordinates, then the node-name prefix fallback, then the compile-time
+// default coordinates (regulation only). This module is intentionally
+// decoupled from any specific application class: callers pass the RegionMap,
+// NodePrefs and filesystem it should operate on. It depends only on MeshCore
+// library types, so it can be compiled into any firmware environment without
+// pulling in an app-specific header.
 class AutoRegions {
 public:
-  static void checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs, SensorManager& sensors, FILESYSTEM* fs);
+  static void checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs, FILESYSTEM* fs);
   static bool isNodeInEurope();
   // Tx power / duty cycle are derived state: re-derive both for the given
   // frequency (call wherever frequency or location changes). Only mutates
