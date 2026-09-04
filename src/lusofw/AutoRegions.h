@@ -8,10 +8,37 @@ struct GeoPoint {
   float lon;
 };
 
+// One closed ring of a region polygon (last vertex == first vertex).
+struct RegionRing {
+  const GeoPoint* points;
+  uint16_t count;
+};
+
+// A region is one or more rings (multi-part regions carry one ring per island).
 struct RegionPolygon {
   const char* name;
-  const GeoPoint* points;
-  int num_points;
+  const RegionRing* rings;
+  uint8_t ring_count;
+};
+
+// Region hierarchy levels. A name normally belongs to one level; the tags let
+// the fallback catalog state which level each entry refers to.
+enum RegionKind : uint8_t {
+  KIND_MACRO    = 1 << 0,
+  KIND_DISTRICT = 1 << 1,
+};
+
+// One no-GPS fallback assignment: region name plus the level it belongs to.
+struct FallbackRegion {
+  const char* name;
+  uint8_t kinds;
+};
+
+// Node-name prefix (e.g. "AV") -> regions a node there belongs to.
+struct RegionFallback {
+  const char* prefix;
+  const FallbackRegion* regions;
+  int num_regions;
 };
 
 // Automatic geographical region assignment.
