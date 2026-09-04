@@ -39,10 +39,10 @@
 
 #include "lusofw/AutoRegions.h"
 
-// Country identity, consumed by AutoRegions.cpp. Exactly one country header is
-// compiled in (selected in AutoRegions.cpp) and it must provide PT_REGION_NAME,
-// PT_IN_EUROPE and the three layers: PT_MACRO_REGIONS, PT_DISTRICTS
-// and PT_FALLBACK_REGIONS (with NUM_PT_* counts).
+// Country identity, consumed by AutoRegions.cpp. One or more country headers
+// are compiled in (selected in AutoRegions.cpp); each must provide
+// PT_REGION_NAME, PT_IN_EUROPE and the three layers: PT_MACRO_REGIONS,
+// PT_DISTRICTS and PT_FALLBACK_REGIONS (with NUM_PT_* counts).
 #define PT_REGION_NAME "#pt"
 static const bool PT_IN_EUROPE = true;
 

@@ -119,7 +119,7 @@ uint16_t AutoRegions::get_parent_for_region(RegionMap& region_map, const char* n
             auto p = region_map.findByName("#europe");
             return p ? p->id : 0;
         }
-        if (strncmp(name, country_name, country_len) == 0 && name[country_len] == '.') {
+        if (strncmp(name, country_name, country_len) == 0 && name[country_len] == '-') {
             auto p = region_map.findByName(country_name);
             return p ? p->id : 0;
         }
@@ -164,8 +164,7 @@ bool AutoRegions::apply_dynamic_region(RegionMap& region_map, const char* reg_na
 bool AutoRegions::remove_outdated_region(RegionMap& region_map, const char* reg_name) {
     auto r = region_map.findByName(reg_name);
     if (r && (r->flags & REGION_AUTO_ASSIGN)) {
-        region_map.removeRegion(*r);
-        return true;
+        return region_map.removeRegion(*r); // false when children still reference it
     }
     return false;
 }
@@ -242,7 +241,15 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
         return false;
     };
 
-    if (has_gps) {
+    // GPS evaluation needs compiled-in polygon data; with both hierarchy levels
+    // disabled there is none, so fall back to the name-prefix path — GPS and
+    // no-GPS nodes of the same name then get the same country assignment.
+    bool has_polygon_data = false;
+    for (int c = 0; c < NUM_ENABLED_COUNTRIES && !has_polygon_data; c++) {
+        has_polygon_data = ENABLED_COUNTRIES[c].num_macro_regions > 0 || ENABLED_COUNTRIES[c].num_districts > 0;
+    }
+
+    if (has_gps && has_polygon_data) {
         auto evaluate_polygon_array = [&](int country_idx, const RegionPolygon* polys, int count) {
             for (int i = 0; i < count; i++) {
                 for (int j = 0; j < polys[i].ring_count; j++) {
