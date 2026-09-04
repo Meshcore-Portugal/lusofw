@@ -269,11 +269,13 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
             const uint8_t enabled_kinds = enabledRegionKinds();
 
             // First country claiming the prefix wins (registry order).
-            for (int c = 0; c < NUM_ENABLED_COUNTRIES && !country_matched[c]; c++) {
+            bool prefix_claimed = false;
+            for (int c = 0; c < NUM_ENABLED_COUNTRIES && !prefix_claimed; c++) {
                 const CountryRegions& country = ENABLED_COUNTRIES[c];
                 for (int i = 0; i < country.num_fallback_regions; i++) {
                     if (strcmp(country.fallback_regions[i].prefix, prefix) != 0) continue;
                     country_matched[c] = true;
+                    prefix_claimed = true;
                     is_in_europe = country.in_europe;
                     for (int j = 0; j < country.fallback_regions[i].num_regions; j++) {
                         const FallbackRegion& fr = country.fallback_regions[i].regions[j];
