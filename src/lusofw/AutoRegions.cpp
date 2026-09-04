@@ -33,6 +33,15 @@
 
 #include "lusofw/regions/eu_regions.h"
 
+// Compile-time default coordinates — same #ifndef fallback convention as the
+// example sketches; variant build flags (-DADVERT_LAT=...) override these.
+#ifndef ADVERT_LAT
+  #define ADVERT_LAT 0.0
+#endif
+#ifndef ADVERT_LON
+  #define ADVERT_LON 0.0
+#endif
+
 // Registry of the compiled-in countries, in fallback priority order.
 static const CountryRegions ENABLED_COUNTRIES[] = {
 #ifdef ENABLE_COUNTRY_PT

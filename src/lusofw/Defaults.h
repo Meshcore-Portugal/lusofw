@@ -15,9 +15,12 @@ class LusoDefaults {
   // version-specific one-shot migrations to the persisted region map — the
   // map is loaded and saved back here, only when a migration actually fires
   // and only if something was migrated.
-  // Must run before writeVersion() stamps the new version, so each migration
-  // runs exactly once per device.
-  static void applyDefaults(NodePrefs& prefs, RegionMap& region_map, FILESYSTEM* fs, const char* version);
+  // Returns false when a region-map migration is blocked (legacy region still
+  // has children, or an existing map file failed to read): the caller must
+  // NOT stamp the version, so the migration retries on the next boot instead
+  // of being silently consumed. A missing map file is success — a fresh
+  // install has no legacy region to retire.
+  static bool applyDefaults(NodePrefs& prefs, RegionMap& region_map, FILESYSTEM* fs, const char* version);
 
   // Reads the previously-recorded firmware version string from the filesystem.
   // Empty string if none recorded yet (first boot).

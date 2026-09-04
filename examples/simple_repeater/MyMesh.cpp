@@ -1026,12 +1026,17 @@ void MyMesh::begin(FILESYSTEM *fs) {
   char oldVersion[32];
   LusoDefaults::readVersion(_fs, oldVersion, sizeof(oldVersion));
   if (strcmp(oldVersion, LUSOFW_FIRMWARE_VERSION) != 0) {
-    // applyDefaults loads/saves the region map itself when a migration fires
-    LusoDefaults::applyDefaults(_prefs, region_map, _fs, oldVersion);
-    _cli.savePrefs(_fs);
-    LusoDefaults::writeVersion(_fs, LUSOFW_FIRMWARE_VERSION);
-    delay(1000);
-    board.reboot();  // doesn't return
+    // applyDefaults loads/saves the region map itself when a migration fires.
+    // A blocked migration returns false: the version is not stamped and the
+    // node boots normally, so the migration retries on the next boot (the CLI
+    // stays reachable to clear the blocker) instead of being silently
+    // consumed by the version stamp.
+    if (LusoDefaults::applyDefaults(_prefs, region_map, _fs, oldVersion)) {
+      _cli.savePrefs(_fs);
+      LusoDefaults::writeVersion(_fs, LUSOFW_FIRMWARE_VERSION);
+      delay(1000);
+      board.reboot();  // doesn't return
+    }
   }
 
   acl.load(_fs, self_id);

@@ -14,7 +14,7 @@
  *
  */
 
-void LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESYSTEM *fs, const char *version) {
+bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESYSTEM *fs, const char *version) {
   // Always apply the version-independent baseline first.
   prefs.advert_interval = 0;                  // direct adverts are legacy
   prefs.advert_loc_policy = ADVERT_LOC_PREFS; // use coordinates from prefs
@@ -42,17 +42,26 @@ void LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
     prefs.radio_manual = (prefs.airtime_factor != 1.0f || prefs.tx_power_dbm != LORA_TX_POWER) ? 1 : 0;
 
 #if defined(ENABLE_AUTO_REGIONS)
-    // Retire the legacy "#portugal" region
-    if (fs) {
-      region_map.load(fs);
+    // Retire the legacy "#portugal" region. applyDefaults owns the region map
+    // persistence: it loads the map here and saves only when something was
+    // actually removed. A blocked retirement reports false so the caller does
+    // not stamp the version and the migration retries on the next boot
+    // instead of being silently consumed. A missing map file is success —
+    // a fresh install has no legacy region to retire.
+    if (fs && fs->exists("/regions2")) {
+      if (!region_map.load(fs)) return false; // unreadable map: retry next boot
       if (auto legacy = region_map.findByName("#portugal")) {
         if (region_map.removeRegion(*legacy)) {
           region_map.save(fs);
+        } else {
+          return false; // children still reference it: retry next boot
         }
       }
     }
 #endif
   }
+
+  return true;
 }
 
 // Platform-consistent file opens, mirroring the vendored openWrite() pattern in
