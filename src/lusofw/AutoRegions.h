@@ -66,6 +66,12 @@ class AutoRegions {
 public:
   static void checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs, SensorManager& sensors, FILESYSTEM* fs);
   static bool isNodeInEurope();
+  // Tx power / duty cycle are derived state: re-derive both for the given
+  // frequency (call wherever frequency or location changes). Only mutates
+  // prefs — the caller applies tx power to the radio. No-ops once the user
+  // has set either value manually (prefs.radio_manual, latched by the CLI
+  // set tx / dutycycle / af handlers in CommonCLI).
+  static void applyRadioRegulation(NodePrefs& prefs, float freq);
 
 private:
   static bool in_europe_flag;

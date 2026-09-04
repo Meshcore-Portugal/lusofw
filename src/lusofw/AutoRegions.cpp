@@ -169,13 +169,46 @@ bool AutoRegions::remove_outdated_region(RegionMap& region_map, const char* reg_
     return false;
 }
 
+// Tx power and duty cycle are derived state: the region sets both, and they
+// are re-derived on every evaluation and every frequency change until the
+// user sets either one manually (prefs.radio_manual, latched by the CLI
+// set tx / dutycycle / af handlers in CommonCLI). Limits are applied to the
+// conducted/configured value (FCC-style measurement): antenna gain is
+// unknowable, so the EU e.r.p. numbers are used directly; the variant
+// default (LORA_TX_POWER) is never exceeded. Only mutates prefs — callers
+// apply tx power to the radio themselves. Does NOT savePrefs (flash writes
+// block interrupts -> WDT/hard fault boot on nRF52/RAK4631).
+void AutoRegions::applyRadioRegulation(NodePrefs& prefs, float freq) {
+    if (prefs.radio_manual) return;
+
+    // Per ERC/Rec 70-03: 500 mW e.r.p. (27 dBm) only in 869.4-869.65 MHz;
+    // the rest of the 868 band is 25 mW e.r.p. (14 dBm); the 433 band is
+    // 10 mW e.r.p. (10 dBm). On an unrecognized frequency in Europe the most
+    // restrictive limit applies. Outside Europe the board default governs.
+    int8_t tx_power;
+    if (!in_europe_flag) {
+        tx_power = LORA_TX_POWER;
+    } else if (freq >= 869.4f && freq <= 869.65f) {
+        tx_power = 22;
+    } else if (freq >= 863.0f && freq <= 870.0f) {
+        tx_power = 14;
+    } else if (freq >= 433.05f && freq <= 434.79f) {
+        tx_power = 10;
+    } else {
+        tx_power = 10; // in Europe on a frequency with no EU allocation
+    }
+    if (tx_power > LORA_TX_POWER) tx_power = LORA_TX_POWER;
+
+    prefs.tx_power_dbm = tx_power;
+    prefs.airtime_factor = in_europe_flag ? 9.0f : 1.0f;
+}
+
 void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs, SensorManager& sensors, FILESYSTEM* fs) {
     static float last_checked_lat = -999.0f;
     static float last_checked_lon = -999.0f;
     static char last_checked_name[sizeof(prefs.node_name)] = {0};
 
     static bool force_initial_check = true;
-    static float original_airtime_factor = -1.0f;
 
     float current_lat = 0.0f;
     float current_lon = 0.0f;
@@ -335,58 +368,8 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
 
     in_europe_flag = is_in_europe;
 
-    // Enforce European regulations (max 10% duty cycle / min 9.0 airtime factor,
-    // plus band-appropriate tx power) whenever the node is physically located
-    // within the European geography.
-    // We only overwrite the active setting in RAM if the user's setting currently
-    // exceeds what the regulations allow.
-    //
-    // Skipped when the user has manually set tx power or duty cycle (prefs.radio_manual):
-    // their explicit choice wins, even if it is above the regulatory floor.
-	//
-	// NOTE: We DO NOT call savePrefs() here because flash writes block interrupts,
-    // which causes a boot crash (WDT/Hard Fault) on nRF52/RAK4631.
-    if (!prefs.radio_manual) {
-        // tx power: per ERC/Rec 70-03, 500 mW e.r.p. (27 dBm) is only allowed in
-        // 869.4-869.65 MHz; the rest of the 868 band is limited to 25 mW e.r.p.
-        // (14 dBm) and the 433 band to 10 mW e.r.p. (10 dBm). Outside Europe the
-        // board default (LORA_TX_POWER) applies.
-		//
-        // NOTE: power limits are measured differently inside and outside Europe.
-        // Under FCC rules (USA) power is measured at the transmitter output
-        // (conducted power), whereas in the EU the e.r.p. is the radio + antenna
-        // combination: TX power + antenna gain - system losses (cable/connector),
-        // referenced to a half-wave dipole. So in Europe, restricting TX power
-        // alone is not enough to be compliant: antenna gain counts towards the
-        // limit.
-        int8_t tx_power;
-        if (in_europe_flag && prefs.freq >= 869.4f && prefs.freq <= 869.65f) {
-            tx_power = 22;  // EU 869.4-869.65 high-power sub-band (500 mW e.r.p.)
-        } else if (in_europe_flag && prefs.freq >= 863.0f && prefs.freq <= 870.0f) {
-            tx_power = 14;  // EU 868 band (25 mW e.r.p.)
-        } else if (in_europe_flag && prefs.freq >= 433.05f && prefs.freq <= 434.79f) {
-            tx_power = 10;  // EU 433 band (10 mW e.r.p.)
-        } else {
-            tx_power = LORA_TX_POWER;
-        }
-        prefs.tx_power_dbm = tx_power;
-
-        if (in_europe_flag) {
-            if (prefs.airtime_factor < 9.0f) {
-                // Capture the original permissive duty cycle before restricting it
-                if (original_airtime_factor < 0.0f) {
-                    original_airtime_factor = prefs.airtime_factor;
-                }
-                prefs.airtime_factor = 9.0f;
-            }
-        } else {
-            // Restore the original permissive duty cycle if we leave Europe
-            if (original_airtime_factor >= 0.0f) {
-                prefs.airtime_factor = original_airtime_factor;
-                original_airtime_factor = -1.0f;
-            }
-        }
-    }
+    // Tx power / duty cycle follow the region until the user sets them manually
+    applyRadioRegulation(prefs, prefs.freq);
 
     // Now apply all valid regions
     if (num_valid > 0) {

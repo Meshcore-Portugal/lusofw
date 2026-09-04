@@ -1292,7 +1292,10 @@ void MyMesh::onDefaultRegionChanged(const RegionEntry* r) {
 void MyMesh::onNodeConfigChanged() {
 #if defined(ENABLE_AUTO_REGIONS)
   // Re-evaluate and reassign geographical regions based on the new name/coordinates
+  // (manual radio commands latch prefs.radio_manual themselves in CommonCLI)
   AutoRegions::checkRegionAutoAssign(region_map, _prefs, sensors, _fs);
+  // The re-evaluation may have re-derived tx power — apply it to the radio
+  radio_driver.setTxPower(_prefs.tx_power_dbm);
 #endif
 }
 
@@ -1476,12 +1479,21 @@ void MyMesh::loop() {
   if (set_radio_at && millisHasNowPassed(set_radio_at)) { // apply pending (temporary) radio params
     set_radio_at = 0;                                     // clear timer
     radio_driver.setParams(pending_freq, pending_bw, pending_sf, pending_cr);
+#if defined(ENABLE_AUTO_REGIONS)
+    // Re-derive tx power for the temporary frequency (e.g. 14 dBm sub-bands)
+    AutoRegions::applyRadioRegulation(_prefs, pending_freq);
+    radio_driver.setTxPower(_prefs.tx_power_dbm);
+#endif
     MESH_DEBUG_PRINTLN("Temp radio params");
   }
 
   if (revert_radio_at && millisHasNowPassed(revert_radio_at)) { // revert radio params to orig
     revert_radio_at = 0;                                        // clear timer
     radio_driver.setParams(_prefs.freq, _prefs.bw, _prefs.sf, _prefs.cr);
+#if defined(ENABLE_AUTO_REGIONS)
+    AutoRegions::applyRadioRegulation(_prefs, _prefs.freq);
+    radio_driver.setTxPower(_prefs.tx_power_dbm);
+#endif
     MESH_DEBUG_PRINTLN("Radio params restored");
   }
 
