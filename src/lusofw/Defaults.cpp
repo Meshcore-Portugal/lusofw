@@ -36,6 +36,12 @@ void LusoDefaults::applyDefaults(NodePrefs &prefs, const char *version) {
     prefs.rx_boosted_gain = 1;   // config struct changes made this be disabled on edge cases
 #endif
   }
+
+  if (versionLessThan(version, "2026.9.1")) {
+    // flag user-customized radio settings so AutoRegions leaves them alone,
+    // as if tx power or airtime factor had been set via CLI
+    prefs.radio_manual = (prefs.airtime_factor != 1.0f || prefs.tx_power_dbm != LORA_TX_POWER) ? 1 : 0;
+  }
 }
 
 void LusoDefaults::readVersion(FILESYSTEM *fs, char *buf, size_t bufLen) {

@@ -46,6 +46,10 @@
 #include "lusofw/regions/pt_regions_no_gps_fallback.h"
 #include "lusofw/regions/eu_region_0km.h"
 
+#ifndef LORA_TX_POWER
+#define LORA_TX_POWER 22
+#endif
+
 bool AutoRegions::in_europe_flag = false;
 
 bool AutoRegions::isNodeInEurope() {
@@ -377,14 +381,42 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
 
     in_europe_flag = is_in_europe;
 
-    // Enforce European regulations (max 10% duty cycle / min 9.0 airtime factor)
-    // whenever the node is physically located within the European geography.
-    // We only overwrite the active setting in RAM if the user's setting is currently illegal.
-    // NOTE: We DO NOT call savePrefs() here because flash writes block interrupts,
-    // which causes a boot crash (WDT/Hard Fault) on nRF52/RAK4631.
+    // Enforce European regulations (max 10% duty cycle / min 9.0 airtime factor,
+    // plus band-appropriate tx power) whenever the node is physically located
+    // within the European geography.
+    // We only overwrite the active setting in RAM if the user's setting currently
+    // exceeds what the regulations allow.
+    //
     // Skipped when the user has manually set tx power or duty cycle (prefs.radio_manual):
     // their explicit choice wins, even if it is above the regulatory floor.
+	//
+	// NOTE: We DO NOT call savePrefs() here because flash writes block interrupts,
+    // which causes a boot crash (WDT/Hard Fault) on nRF52/RAK4631.
     if (!prefs.radio_manual) {
+        // tx power: per ERC/Rec 70-03, 500 mW e.r.p. (27 dBm) is only allowed in
+        // 869.4-869.65 MHz; the rest of the 868 band is limited to 25 mW e.r.p.
+        // (14 dBm) and the 433 band to 10 mW e.r.p. (10 dBm). Outside Europe the
+        // board default (LORA_TX_POWER) applies.
+		//
+        // NOTE: power limits are measured differently inside and outside Europe.
+        // Under FCC rules (USA) power is measured at the transmitter output
+        // (conducted power), whereas in the EU the e.r.p. is the radio + antenna
+        // combination: TX power + antenna gain - system losses (cable/connector),
+        // referenced to a half-wave dipole. So in Europe, restricting TX power
+        // alone is not enough to be compliant: antenna gain counts towards the
+        // limit.
+        int8_t tx_power;
+        if (in_europe_flag && prefs.freq >= 869.4f && prefs.freq <= 869.65f) {
+            tx_power = 22;  // EU 869.4-869.65 high-power sub-band (500 mW e.r.p.)
+        } else if (in_europe_flag && prefs.freq >= 863.0f && prefs.freq <= 870.0f) {
+            tx_power = 14;  // EU 868 band (25 mW e.r.p.)
+        } else if (in_europe_flag && prefs.freq >= 433.05f && prefs.freq <= 434.79f) {
+            tx_power = 10;  // EU 433 band (10 mW e.r.p.)
+        } else {
+            tx_power = LORA_TX_POWER;
+        }
+        prefs.tx_power_dbm = tx_power;
+
         if (in_europe_flag) {
             if (prefs.airtime_factor < 9.0f) {
                 // Capture the original permissive duty cycle before restricting it
