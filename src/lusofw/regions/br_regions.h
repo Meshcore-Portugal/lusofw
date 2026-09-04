@@ -3,15 +3,15 @@
 // BRAZIL — DUMMY PLACEHOLDER.
 // Minimal geometry that wires the per-country selection up for testing only.
 // Replace every polygon here with real IBGE-grade data before release;
-// the schema (COUNTRY_* tables, RegionRing/RegionPolygon) is final.
-// Note: COUNTRY_IN_EUROPE is false — no EU duty-cycle/tx-power limits apply.
+// the schema (country-prefixed tables, RegionRing/RegionPolygon) is final.
+// Note: BR_IN_EUROPE is false — no EU duty-cycle/tx-power limits apply.
 
 #include <Arduino.h>
 
 #include "lusofw/AutoRegions.h"
 
-#define COUNTRY_REGION_NAME "#br"
-static const bool COUNTRY_IN_EUROPE = false;
+#define BR_REGION_NAME "#br"
+static const bool BR_IN_EUROPE = false;
 
 #ifdef ENABLE_REGION_MACRO
 
@@ -40,12 +40,15 @@ static const RegionRing rings_br_macro_sudeste[] PROGMEM = {
     {poly_br_macro_sudeste_0, 5},
 };
 
-static const RegionPolygon COUNTRY_MACRO_REGIONS[] = {
+static const RegionPolygon BR_MACRO_REGIONS[] = {
     {"#br-norte",   rings_br_macro_norte, 1},
     {"#br-sudeste", rings_br_macro_sudeste, 1},
 };
-static const int NUM_COUNTRY_MACRO_REGIONS = sizeof(COUNTRY_MACRO_REGIONS) / sizeof(COUNTRY_MACRO_REGIONS[0]);
+static const int NUM_BR_MACRO_REGIONS = sizeof(BR_MACRO_REGIONS) / sizeof(BR_MACRO_REGIONS[0]);
 
+#else
+static const RegionPolygon* const BR_MACRO_REGIONS = nullptr;
+static const int NUM_BR_MACRO_REGIONS = 0;
 #endif // ENABLE_REGION_MACRO
 
 #ifdef ENABLE_REGION_DISTRICTS
@@ -75,12 +78,15 @@ static const RegionRing rings_br_districts_rio_de_janeiro[] PROGMEM = {
     {poly_br_districts_rio_de_janeiro_0, 5},
 };
 
-static const RegionPolygon COUNTRY_DISTRICTS[] = {
+static const RegionPolygon BR_DISTRICTS[] = {
     {"#br-sao-paulo",       rings_br_districts_sao_paulo, 1},
     {"#br-rio-de-janeiro",  rings_br_districts_rio_de_janeiro, 1},
 };
-static const int NUM_COUNTRY_DISTRICTS = sizeof(COUNTRY_DISTRICTS) / sizeof(COUNTRY_DISTRICTS[0]);
+static const int NUM_BR_DISTRICTS = sizeof(BR_DISTRICTS) / sizeof(BR_DISTRICTS[0]);
 
+#else
+static const RegionPolygon* const BR_DISTRICTS = nullptr;
+static const int NUM_BR_DISTRICTS = 0;
 #endif // ENABLE_REGION_DISTRICTS
 
 // No-GPS fallback: node-name prefix -> ONE district + ONE macro region (DUMMY)
@@ -94,8 +100,8 @@ static const FallbackRegion fallback_BR_RJ[] = {
     {"#br-sudeste",        KIND_MACRO},
 };
 
-static const RegionFallback COUNTRY_FALLBACK_REGIONS[] = {
+static const RegionFallback BR_FALLBACK_REGIONS[] = {
     {"SP", fallback_BR_SP, sizeof(fallback_BR_SP) / sizeof(fallback_BR_SP[0])},
     {"RJ", fallback_BR_RJ, sizeof(fallback_BR_RJ) / sizeof(fallback_BR_RJ[0])},
 };
-static const int NUM_COUNTRY_FALLBACK_REGIONS = sizeof(COUNTRY_FALLBACK_REGIONS) / sizeof(COUNTRY_FALLBACK_REGIONS[0]);
+static const int NUM_BR_FALLBACK_REGIONS = sizeof(BR_FALLBACK_REGIONS) / sizeof(BR_FALLBACK_REGIONS[0]);

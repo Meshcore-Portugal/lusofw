@@ -14,7 +14,7 @@
  *
  */
 
-void LusoDefaults::applyDefaults(NodePrefs &prefs, const char *version) {
+void LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESYSTEM *fs, const char *version) {
   // Always apply the version-independent baseline first.
   prefs.advert_interval = 0;                  // direct adverts are legacy
   prefs.advert_loc_policy = ADVERT_LOC_PREFS; // use coordinates from prefs
@@ -41,6 +41,13 @@ void LusoDefaults::applyDefaults(NodePrefs &prefs, const char *version) {
     // flag user-customized radio settings so AutoRegions leaves them alone,
     // as if tx power or airtime factor had been set via CLI
     prefs.radio_manual = (prefs.airtime_factor != 1.0f || prefs.tx_power_dbm != LORA_TX_POWER) ? 1 : 0;
+
+    // Retire the pre-AutoRegions default country scope: it was created without
+    // the REGION_AUTO_ASSIGN flag, so the AutoRegions sweep skips it by design.
+    if (auto legacy = fs ? region_map.findByName("#portugal") : nullptr) {
+      region_map.removeRegion(*legacy);
+      region_map.save(fs);
+    }
   }
 }
 

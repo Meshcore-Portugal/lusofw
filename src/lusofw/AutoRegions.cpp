@@ -5,27 +5,47 @@
 #include <Arduino.h>
 #include <helpers/TxtDataHelpers.h>
 
-// Enable or disable specific region hierarchy levels (within the selected country)
+// Enable or disable specific region hierarchy levels (within every country)
 #define ENABLE_REGION_DISTRICTS
 #define ENABLE_REGION_MACRO
 
-// Country selection — enable exactly ONE. This picks the three region layers
-// (macro regions, districts, no-GPS fallback catalog) compiled into the firmware.
+// Country selection — enable any combination. Each enabled country brings its
+// three layers (macro regions, districts, no-GPS fallback catalog). Registry
+// order below is the fallback prefix priority order: prefixes are only unique
+// within a country's catalog, so the first country claiming a prefix wins.
 #define ENABLE_COUNTRY_PT
 // #define ENABLE_COUNTRY_ES
 // #define ENABLE_COUNTRY_BR
 
-#if defined(ENABLE_COUNTRY_PT)
+#if !defined(ENABLE_COUNTRY_PT) && !defined(ENABLE_COUNTRY_ES) && !defined(ENABLE_COUNTRY_BR)
+#error "Enable at least one country: ENABLE_COUNTRY_PT, ENABLE_COUNTRY_ES, ENABLE_COUNTRY_BR"
+#endif
+
+#ifdef ENABLE_COUNTRY_PT
   #include "lusofw/regions/pt_regions.h"
-#elif defined(ENABLE_COUNTRY_ES)
+#endif
+#ifdef ENABLE_COUNTRY_ES
   #include "lusofw/regions/es_regions.h"
-#elif defined(ENABLE_COUNTRY_BR)
+#endif
+#ifdef ENABLE_COUNTRY_BR
   #include "lusofw/regions/br_regions.h"
-#else
-  #error "Enable exactly one country: ENABLE_COUNTRY_PT, ENABLE_COUNTRY_ES or ENABLE_COUNTRY_BR"
 #endif
 
 #include "lusofw/regions/eu_regions.h"
+
+// Registry of the compiled-in countries, in fallback priority order.
+static const CountryRegions ENABLED_COUNTRIES[] = {
+#ifdef ENABLE_COUNTRY_PT
+    {PT_REGION_NAME, PT_IN_EUROPE, PT_MACRO_REGIONS, NUM_PT_MACRO_REGIONS, PT_DISTRICTS, NUM_PT_DISTRICTS, PT_FALLBACK_REGIONS, NUM_PT_FALLBACK_REGIONS},
+#endif
+#ifdef ENABLE_COUNTRY_ES
+    {ES_REGION_NAME, ES_IN_EUROPE, ES_MACRO_REGIONS, NUM_ES_MACRO_REGIONS, ES_DISTRICTS, NUM_ES_DISTRICTS, ES_FALLBACK_REGIONS, NUM_ES_FALLBACK_REGIONS},
+#endif
+#ifdef ENABLE_COUNTRY_BR
+    {BR_REGION_NAME, BR_IN_EUROPE, BR_MACRO_REGIONS, NUM_BR_MACRO_REGIONS, BR_DISTRICTS, NUM_BR_DISTRICTS, BR_FALLBACK_REGIONS, NUM_BR_FALLBACK_REGIONS},
+#endif
+};
+static const int NUM_ENABLED_COUNTRIES = sizeof(ENABLED_COUNTRIES) / sizeof(ENABLED_COUNTRIES[0]);
 
 bool AutoRegions::in_europe_flag = false;
 
@@ -57,7 +77,7 @@ static uint8_t enabledRegionKinds() {
     return k;
 }
 
-bool AutoRegions::inject_hierarchy(RegionMap& region_map, bool create_eu, bool create_country) {
+bool AutoRegions::inject_hierarchy(RegionMap& region_map, const bool* country_matched, bool create_eu) {
     bool changed = false;
     if (create_eu) {
         auto r = region_map.findByName("#europe");
@@ -70,16 +90,18 @@ bool AutoRegions::inject_hierarchy(RegionMap& region_map, bool create_eu, bool c
         }
     }
 
-    if (create_country) {
-        auto r = region_map.findByName(COUNTRY_REGION_NAME);
+    for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
+        if (!country_matched[c]) continue;
+        const char* name = ENABLED_COUNTRIES[c].name;
+        auto r = region_map.findByName(name);
         if (!r) {
-            r = region_map.putRegion(COUNTRY_REGION_NAME, get_parent_for_region(region_map, COUNTRY_REGION_NAME));
+            r = region_map.putRegion(name, get_parent_for_region(region_map, name));
             if (r) {
                 r->flags |= REGION_AUTO_ASSIGN;
                 changed = true;
             }
         } else {
-            uint16_t expected_parent = get_parent_for_region(region_map, COUNTRY_REGION_NAME);
+            uint16_t expected_parent = get_parent_for_region(region_map, name);
             if (r->parent != expected_parent) {
                 r->parent = expected_parent;
                 changed = true;
@@ -90,14 +112,17 @@ bool AutoRegions::inject_hierarchy(RegionMap& region_map, bool create_eu, bool c
 }
 
 uint16_t AutoRegions::get_parent_for_region(RegionMap& region_map, const char* name) {
-    size_t country_len = strlen(COUNTRY_REGION_NAME);
-    if (strcmp(name, COUNTRY_REGION_NAME) == 0) {
-        auto p = region_map.findByName("#europe");
-        return p ? p->id : 0;
-    }
-    if (strncmp(name, COUNTRY_REGION_NAME, country_len) == 0 && name[country_len] == '.') {
-        auto p = region_map.findByName(COUNTRY_REGION_NAME);
-        return p ? p->id : 0;
+    for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
+        const char* country_name = ENABLED_COUNTRIES[c].name;
+        size_t country_len = strlen(country_name);
+        if (strcmp(name, country_name) == 0) {
+            auto p = region_map.findByName("#europe");
+            return p ? p->id : 0;
+        }
+        if (strncmp(name, country_name, country_len) == 0 && name[country_len] == '.') {
+            auto p = region_map.findByName(country_name);
+            return p ? p->id : 0;
+        }
     }
     return 0;
 }
@@ -201,7 +226,7 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
 
     const char* valid_regions[16];
     int num_valid = 0;
-    bool is_in_country = false;
+    bool country_matched[NUM_ENABLED_COUNTRIES] = {false};
     bool is_in_europe = false;
 
     auto add_valid_region = [&](const char* name) {
@@ -218,11 +243,11 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
     };
 
     if (has_gps) {
-        auto evaluate_polygon_array = [&](const RegionPolygon* polys, int count) {
+        auto evaluate_polygon_array = [&](int country_idx, const RegionPolygon* polys, int count) {
             for (int i = 0; i < count; i++) {
                 for (int j = 0; j < polys[i].ring_count; j++) {
                     if (isPointInPolygon(eval_lat, eval_lon, polys[i].rings[j].points, polys[i].rings[j].count)) {
-                        is_in_country = true;
+                        country_matched[country_idx] = true;
                         add_valid_region(polys[i].name);
                         break; // region matched; no need to test its remaining rings
                     }
@@ -230,25 +255,9 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
             }
         };
 
-        #ifdef ENABLE_REGION_MACRO
-        evaluate_polygon_array(COUNTRY_MACRO_REGIONS, NUM_COUNTRY_MACRO_REGIONS);
-        #endif
-
-        #ifdef ENABLE_REGION_DISTRICTS
-        evaluate_polygon_array(COUNTRY_DISTRICTS, NUM_COUNTRY_DISTRICTS);
-        #endif
-
-        if (is_in_country) {
-            is_in_europe = COUNTRY_IN_EUROPE;
-            add_valid_region(COUNTRY_REGION_NAME);
-        } else {
-            if (isPointInPolygon(eval_lat, eval_lon, REGION_EUROPE.rings[0].points, REGION_EUROPE.rings[0].count)) {
-                is_in_europe = true;
-            }
-        }
-
-        if (is_in_europe) {
-            add_valid_region("#europe");
+        for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
+            evaluate_polygon_array(c, ENABLED_COUNTRIES[c].macro_regions, ENABLED_COUNTRIES[c].num_macro_regions);
+            evaluate_polygon_array(c, ENABLED_COUNTRIES[c].districts, ENABLED_COUNTRIES[c].num_districts);
         }
     } else {
         if (prefs.node_name[0] != '\0' && prefs.node_name[1] != '\0' && prefs.node_name[2] == '.') {
@@ -259,17 +268,15 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
 
             const uint8_t enabled_kinds = enabledRegionKinds();
 
-            for (int i = 0; i < NUM_COUNTRY_FALLBACK_REGIONS; i++) {
-                if (strcmp(COUNTRY_FALLBACK_REGIONS[i].prefix, prefix) == 0) {
-                    is_in_country = true;
-                    is_in_europe = COUNTRY_IN_EUROPE;
-                    add_valid_region(COUNTRY_REGION_NAME);
-                    if (COUNTRY_IN_EUROPE) {
-                        add_valid_region("#europe");
-                    }
-
-                    for (int j = 0; j < COUNTRY_FALLBACK_REGIONS[i].num_regions; j++) {
-                        const FallbackRegion& fr = COUNTRY_FALLBACK_REGIONS[i].regions[j];
+            // First country claiming the prefix wins (registry order).
+            for (int c = 0; c < NUM_ENABLED_COUNTRIES && !country_matched[c]; c++) {
+                const CountryRegions& country = ENABLED_COUNTRIES[c];
+                for (int i = 0; i < country.num_fallback_regions; i++) {
+                    if (strcmp(country.fallback_regions[i].prefix, prefix) != 0) continue;
+                    country_matched[c] = true;
+                    is_in_europe = country.in_europe;
+                    for (int j = 0; j < country.fallback_regions[i].num_regions; j++) {
+                        const FallbackRegion& fr = country.fallback_regions[i].regions[j];
                         if (!(fr.kinds & enabled_kinds)) continue; // level not compiled in
                         add_valid_region(fr.name);
                     }
@@ -279,28 +286,42 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
         }
     }
 
-    // Now remove any region that is NOT in valid_regions
-    #ifdef ENABLE_REGION_MACRO
-    for (int i = 0; i < NUM_COUNTRY_MACRO_REGIONS; i++) {
-        if (!is_region_valid(COUNTRY_MACRO_REGIONS[i].name)) map_changed |= remove_outdated_region(region_map, COUNTRY_MACRO_REGIONS[i].name);
+    // Country regions and Europe membership, shared by the GPS and fallback paths
+    bool any_country_matched = false;
+    for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
+        if (!country_matched[c]) continue;
+        any_country_matched = true;
+        if (ENABLED_COUNTRIES[c].in_europe) is_in_europe = true;
+        add_valid_region(ENABLED_COUNTRIES[c].name);
     }
-    #endif
-
-    #ifdef ENABLE_REGION_DISTRICTS
-    for (int i = 0; i < NUM_COUNTRY_DISTRICTS; i++) {
-        if (!is_region_valid(COUNTRY_DISTRICTS[i].name)) map_changed |= remove_outdated_region(region_map, COUNTRY_DISTRICTS[i].name);
-    }
-    #endif
-
-    for (int i = 0; i < NUM_COUNTRY_FALLBACK_REGIONS; i++) {
-        for (int j = 0; j < COUNTRY_FALLBACK_REGIONS[i].num_regions; j++) {
-            if (!is_region_valid(COUNTRY_FALLBACK_REGIONS[i].regions[j].name)) {
-                map_changed |= remove_outdated_region(region_map, COUNTRY_FALLBACK_REGIONS[i].regions[j].name);
-            }
+    if (has_gps && !any_country_matched) {
+        // Outside every compiled-in country: fall back to the coarse Europe polygon
+        if (isPointInPolygon(eval_lat, eval_lon, REGION_EUROPE.rings[0].points, REGION_EUROPE.rings[0].count)) {
+            is_in_europe = true;
         }
     }
+    if (is_in_europe) {
+        add_valid_region("#europe");
+    }
 
-    if (!is_region_valid(COUNTRY_REGION_NAME)) map_changed |= remove_outdated_region(region_map, COUNTRY_REGION_NAME);
+    // Now remove any region that is NOT in valid_regions
+    for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
+        const CountryRegions& country = ENABLED_COUNTRIES[c];
+        for (int i = 0; i < country.num_macro_regions; i++) {
+            if (!is_region_valid(country.macro_regions[i].name)) map_changed |= remove_outdated_region(region_map, country.macro_regions[i].name);
+        }
+        for (int i = 0; i < country.num_districts; i++) {
+            if (!is_region_valid(country.districts[i].name)) map_changed |= remove_outdated_region(region_map, country.districts[i].name);
+        }
+        for (int i = 0; i < country.num_fallback_regions; i++) {
+            for (int j = 0; j < country.fallback_regions[i].num_regions; j++) {
+                if (!is_region_valid(country.fallback_regions[i].regions[j].name)) {
+                    map_changed |= remove_outdated_region(region_map, country.fallback_regions[i].regions[j].name);
+                }
+            }
+        }
+        if (!is_region_valid(country.name)) map_changed |= remove_outdated_region(region_map, country.name);
+    }
     if (!is_region_valid("#europe")) map_changed |= remove_outdated_region(region_map, "#europe");
 
     in_europe_flag = is_in_europe;
@@ -360,7 +381,7 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
 
     // Now apply all valid regions
     if (num_valid > 0) {
-        map_changed |= inject_hierarchy(region_map, is_in_europe, is_in_country);
+        map_changed |= inject_hierarchy(region_map, country_matched, is_in_europe);
         for (int i = 0; i < num_valid; i++) {
             map_changed |= apply_dynamic_region(region_map, valid_regions[i], get_parent_for_region(region_map, valid_regions[i]));
             // MESH_DEBUG_PRINTLN("Auto-Region Assign: %s", valid_regions[i]);

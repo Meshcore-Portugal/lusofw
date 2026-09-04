@@ -11,8 +11,12 @@
 class LusoDefaults {
  public:
   // Applies baseline defaults, then any version-specific overrides for the
-  // given firmware version string (e.g. "2026.7.2-rc2").
-  static void applyDefaults(NodePrefs& prefs, const char* version);
+  // given firmware version string (e.g. "2026.7.2-rc2"). Also applies
+  // version-specific one-shot migrations to the persisted region map (the
+  // caller loads it first; it is saved back only if something was migrated).
+  // Must run before writeVersion() stamps the new version, so each migration
+  // runs exactly once per device.
+  static void applyDefaults(NodePrefs& prefs, RegionMap& region_map, FILESYSTEM* fs, const char* version);
 
   // Reads the previously-recorded firmware version string from the filesystem.
   // Empty string if none recorded yet (first boot).

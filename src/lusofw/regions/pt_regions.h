@@ -40,11 +40,11 @@
 #include "lusofw/AutoRegions.h"
 
 // Country identity, consumed by AutoRegions.cpp. Exactly one country header is
-// compiled in (selected in AutoRegions.cpp) and it must provide COUNTRY_REGION_NAME,
-// COUNTRY_IN_EUROPE and the three layers: COUNTRY_MACRO_REGIONS, COUNTRY_DISTRICTS
-// and COUNTRY_FALLBACK_REGIONS (with NUM_COUNTRY_* counts).
-#define COUNTRY_REGION_NAME "#pt"
-static const bool COUNTRY_IN_EUROPE = true;
+// compiled in (selected in AutoRegions.cpp) and it must provide PT_REGION_NAME,
+// PT_IN_EUROPE and the three layers: PT_MACRO_REGIONS, PT_DISTRICTS
+// and PT_FALLBACK_REGIONS (with NUM_PT_* counts).
+#define PT_REGION_NAME "#pt"
+static const bool PT_IN_EUROPE = true;
 
 
 #ifdef ENABLE_REGION_DISTRICTS
@@ -1771,7 +1771,7 @@ static const RegionRing rings_districts_ilha_do_corvo[] PROGMEM = {
     {poly_districts_ilha_do_corvo_0, 5},
 };
 
-static const RegionPolygon COUNTRY_DISTRICTS[] = {
+static const RegionPolygon PT_DISTRICTS[] = {
     {"#pt-aveiro", rings_districts_aveiro, 1},
     {"#pt-beja", rings_districts_beja, 1},
     {"#pt-braga", rings_districts_braga, 1},
@@ -1802,8 +1802,11 @@ static const RegionPolygon COUNTRY_DISTRICTS[] = {
     {"#pt-ilha-das-flores", rings_districts_ilha_das_flores, 1},
     {"#pt-ilha-do-corvo", rings_districts_ilha_do_corvo, 1},
 };
-static const int NUM_COUNTRY_DISTRICTS = sizeof(COUNTRY_DISTRICTS) / sizeof(COUNTRY_DISTRICTS[0]);
+static const int NUM_PT_DISTRICTS = sizeof(PT_DISTRICTS) / sizeof(PT_DISTRICTS[0]);
 
+#else
+static const RegionPolygon* const PT_DISTRICTS = nullptr;
+static const int NUM_PT_DISTRICTS = 0;
 #endif // ENABLE_REGION_DISTRICTS
 
 #ifdef ENABLE_REGION_MACRO
@@ -2660,7 +2663,7 @@ static const RegionRing rings_macro_acores[] PROGMEM = {
     {poly_macro_acores_8, 5},
 };
 
-static const RegionPolygon COUNTRY_MACRO_REGIONS[] = {
+static const RegionPolygon PT_MACRO_REGIONS[] = {
     {"#pt-alentejo", rings_macro_alentejo, 1},
     {"#pt-algarve", rings_macro_algarve, 1},
     {"#pt-centro", rings_macro_centro, 1},
@@ -2669,8 +2672,11 @@ static const RegionPolygon COUNTRY_MACRO_REGIONS[] = {
     {"#pt-madeira", rings_macro_madeira, 6},
     {"#pt-acores", rings_macro_acores, 9},
 };
-static const int NUM_COUNTRY_MACRO_REGIONS = sizeof(COUNTRY_MACRO_REGIONS) / sizeof(COUNTRY_MACRO_REGIONS[0]);
+static const int NUM_PT_MACRO_REGIONS = sizeof(PT_MACRO_REGIONS) / sizeof(PT_MACRO_REGIONS[0]);
 
+#else
+static const RegionPolygon* const PT_MACRO_REGIONS = nullptr;
+static const int NUM_PT_MACRO_REGIONS = 0;
 #endif // ENABLE_REGION_MACRO
 
 // ---------------------------------------------------------------------------
@@ -2777,7 +2783,7 @@ static const FallbackRegion fallback_EV[] = {
     {"#pt-alentejo", KIND_MACRO},
 };
 
-static const RegionFallback COUNTRY_FALLBACK_REGIONS[] = {
+static const RegionFallback PT_FALLBACK_REGIONS[] = {
     {"AV", fallback_AV, sizeof(fallback_AV) / sizeof(fallback_AV[0])},
     {"AC", fallback_AC, sizeof(fallback_AC) / sizeof(fallback_AC[0])},
     {"BE", fallback_BE, sizeof(fallback_BE) / sizeof(fallback_BE[0])},
@@ -2799,4 +2805,4 @@ static const RegionFallback COUNTRY_FALLBACK_REGIONS[] = {
     {"VI", fallback_VI, sizeof(fallback_VI) / sizeof(fallback_VI[0])},
     {"EV", fallback_EV, sizeof(fallback_EV) / sizeof(fallback_EV[0])},
 };
-static const int NUM_COUNTRY_FALLBACK_REGIONS = sizeof(COUNTRY_FALLBACK_REGIONS) / sizeof(COUNTRY_FALLBACK_REGIONS[0]);
+static const int NUM_PT_FALLBACK_REGIONS = sizeof(PT_FALLBACK_REGIONS) / sizeof(PT_FALLBACK_REGIONS[0]);

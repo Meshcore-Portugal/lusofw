@@ -1026,7 +1026,8 @@ void MyMesh::begin(FILESYSTEM *fs) {
   char oldVersion[32];
   LusoDefaults::readVersion(_fs, oldVersion, sizeof(oldVersion));
   if (strcmp(oldVersion, LUSOFW_FIRMWARE_VERSION) != 0) {
-    LusoDefaults::applyDefaults(_prefs, oldVersion);
+    region_map.load(_fs);  // needed for the region map migrations in applyDefaults
+    LusoDefaults::applyDefaults(_prefs, region_map, _fs, oldVersion);
     _cli.savePrefs(_fs);
     LusoDefaults::writeVersion(_fs, LUSOFW_FIRMWARE_VERSION);
     delay(1000);
