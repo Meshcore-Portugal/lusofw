@@ -26,7 +26,7 @@ class InterferenceAuto {
 public:
   // Sentinel stored in prefs.interference_threshold: derive the threshold
   // from the current spreading factor instead of a fixed value.
-  static const uint8_t AUTO = 255;
+  static inline const uint8_t AUTO = 255;
 
   /**
    * \brief  Resolve the RSSI listen-before-talk threshold (dB above the

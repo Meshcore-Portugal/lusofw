@@ -85,5 +85,4 @@ private:
   static uint16_t get_parent_for_region(RegionMap& region_map, const char* name);
   static bool enable_region_path(RegionMap& region_map, const char* name);
   static bool apply_dynamic_region(RegionMap& region_map, const char* reg_name, uint16_t parent_id);
-  static bool remove_outdated_region(RegionMap& region_map, const char* reg_name);
 };

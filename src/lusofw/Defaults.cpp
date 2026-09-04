@@ -38,22 +38,45 @@ void LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
   }
 
   if (versionLessThan(version, "2026.9.1")) {
-    // flag user-customized radio settings so AutoRegions leaves them alone,
-    // as if tx power or airtime factor had been set via CLI.
-    // 9.0 airtime and band-clamped tx values (22/14/10) are regulation-derived
-    // on European devices, not user choices — they must not latch the flag.
-    bool duty_custom = (prefs.airtime_factor != 1.0f) && (prefs.airtime_factor != 9.0f);
-    bool tx_custom = (prefs.tx_power_dbm != LORA_TX_POWER) && (prefs.tx_power_dbm != 22) &&
-                     (prefs.tx_power_dbm != 14) && (prefs.tx_power_dbm != 10);
-    prefs.radio_manual = (duty_custom || tx_custom) ? 1 : 0;
+    // Flag user-customized radio settings so AutoRegions leaves them alone
+    prefs.radio_manual = (prefs.airtime_factor != 1.0f || prefs.tx_power_dbm != LORA_TX_POWER) ? 1 : 0;
 
-    // Retire the pre-AutoRegions default country scope: it was created without
-    // the REGION_AUTO_ASSIGN flag, so the AutoRegions sweep skips it by design.
-    if (auto legacy = fs ? region_map.findByName("#portugal") : nullptr) {
-      region_map.removeRegion(*legacy);
-      region_map.save(fs);
+#if defined(ENABLE_AUTO_REGIONS)
+    // Retire the legacy "#portugal" region
+    if (fs) {
+      region_map.load(fs);
+      if (auto legacy = region_map.findByName("#portugal")) {
+        if (region_map.removeRegion(*legacy)) {
+          region_map.save(fs);
+        }
+      }
     }
+#endif
   }
+}
+
+// Platform-consistent file opens, mirroring the vendored openWrite() pattern in
+// helpers/RegionMap.cpp (every other copy is a file-local static in read-only
+// core files, so this module keeps its own one-per-file pair).
+static File openWrite(FILESYSTEM* fs, const char* path) {
+#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+  fs->remove(path); // simpler than truncating
+  return fs->open(path, FILE_O_WRITE);
+#elif defined(RP2040_PLATFORM)
+  return fs->open(path, "w");
+#else
+  return fs->open(path, "w", true);
+#endif
+}
+
+static File openRead(FILESYSTEM* fs, const char* path) {
+#if defined(RP2040_PLATFORM)
+  return fs->open(path, "r");
+#elif defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+  return fs->open(path, FILE_O_READ);
+#else
+  return fs->open(path); // ESP32 FS defaults to read mode (no FILE_O_READ there)
+#endif
 }
 
 void LusoDefaults::readVersion(FILESYSTEM *fs, char *buf, size_t bufLen) {
@@ -66,13 +89,7 @@ void LusoDefaults::readVersion(FILESYSTEM *fs, char *buf, size_t bufLen) {
     return;
   }
 
-#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
-  File f = fs->open("/lusofw", FILE_O_READ);
-#elif defined(RP2040_PLATFORM)
-  File f = fs->open("/lusofw", "r");
-#else
-  File f = fs->open("/lusofw");
-#endif
+  File f = openRead(fs, "/lusofw");
 
   if (!f) {
     return;
@@ -94,14 +111,7 @@ void LusoDefaults::writeVersion(FILESYSTEM *fs, const char *version) {
     return;
   }
 
-#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
-  fs->remove("/lusofw");
-  File f = fs->open("/lusofw", FILE_O_WRITE);
-#elif defined(RP2040_PLATFORM)
-  File f = fs->open("/lusofw", "w");
-#else
-  File f = fs->open("/lusofw", "w", true);
-#endif
+  File f = openWrite(fs, "/lusofw");
 
   if (f) {
     f.print(version);

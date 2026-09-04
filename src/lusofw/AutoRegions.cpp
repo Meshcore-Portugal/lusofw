@@ -52,6 +52,7 @@ bool AutoRegions::in_europe_flag = false;
 bool AutoRegions::isNodeInEurope() {
     return in_europe_flag;
 }
+
 // Classic Ray-Casting algorithm (Fast and allocation-free)
 static bool isPointInPolygon(float lat, float lon, const GeoPoint* poly, int num_points) {
     bool inside = false;
@@ -172,14 +173,6 @@ bool AutoRegions::apply_dynamic_region(RegionMap& region_map, const char* reg_na
     }
     changed |= enable_region_path(region_map, reg_name);
     return changed;
-}
-
-bool AutoRegions::remove_outdated_region(RegionMap& region_map, const char* reg_name) {
-    auto r = region_map.findByName(reg_name);
-    if (r && (r->flags & REGION_AUTO_ASSIGN)) {
-        return region_map.removeRegion(*r); // false when children still reference it
-    }
-    return false;
 }
 
 // Tx power and duty cycle are derived state: the region sets both, and they
@@ -364,25 +357,19 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
         add_valid_region("#europe");
     }
 
-    // Now remove any region that is NOT in valid_regions
-    for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
-        const CountryRegions& country = ENABLED_COUNTRIES[c];
-        for (int i = 0; i < country.num_macro_regions; i++) {
-            if (!is_region_valid(country.macro_regions[i].name)) map_changed |= remove_outdated_region(region_map, country.macro_regions[i].name);
-        }
-        for (int i = 0; i < country.num_districts; i++) {
-            if (!is_region_valid(country.districts[i].name)) map_changed |= remove_outdated_region(region_map, country.districts[i].name);
-        }
-        for (int i = 0; i < country.num_fallback_regions; i++) {
-            for (int j = 0; j < country.fallback_regions[i].num_regions; j++) {
-                if (!is_region_valid(country.fallback_regions[i].regions[j].name)) {
-                    map_changed |= remove_outdated_region(region_map, country.fallback_regions[i].regions[j].name);
-                }
-            }
-        }
-        if (!is_region_valid(country.name)) map_changed |= remove_outdated_region(region_map, country.name);
+    // Map-first sweep: walk the map's own entries once and remove any
+    // auto-assigned region this evaluation did not mark valid — O(map x valid)
+    // instead of a strcmp sweep over every compiled-in table name, and it
+    // self-cleans orphans whose names were renamed or retired from the tables
+    // (e.g. '#eu'-era dev builds) or that belong to countries no longer
+    // enabled. Only REGION_AUTO_ASSIGN entries are removed — user regions are
+    // never touched, and a parent still blocked by children reports false.
+    // removeRegion compacts the array, so walk backwards.
+    for (int i = region_map.getCount() - 1; i >= 0; i--) {
+        const RegionEntry* r = region_map.getByIdx(i);
+        if (!(r->flags & REGION_AUTO_ASSIGN)) continue;
+        if (!is_region_valid(r->name)) map_changed |= region_map.removeRegion(*r);
     }
-    if (!is_region_valid("#europe")) map_changed |= remove_outdated_region(region_map, "#europe");
 
     in_europe_flag = is_in_europe;
 
