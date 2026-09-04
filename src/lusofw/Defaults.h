@@ -28,8 +28,9 @@ class LusoDefaults {
 
  private:
   // Returns true if `version` is strictly less than `threshold`.
-  // Accepts "0.0.7", "2025.3.4", optional leading 'v'/'V', and ignores
-  // pre-release suffixes after the 3rd numeric component. Empty/null
-  // version is treated as oldest.
+  // Accepts "0.0.7", "2025.3.4", optional leading 'v'/'V', and orders
+  // pre-release suffixes after the 3rd numeric component:
+  // 1.3.0-rc1 < 1.3.0-rc2 < 1.4.0 < 1.5.0-rc1 < 1.5.0.
+  // Empty/null version is treated as oldest.
   static bool versionLessThan(const char* version, const char* threshold);
 };

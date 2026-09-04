@@ -120,12 +120,31 @@ void LusoDefaults::writeVersion(FILESYSTEM *fs, const char *version) {
   }
 }
 
+// Sort key of an optional pre-release suffix: a final release (no suffix)
+// sorts after every pre-release, "-rc2" sorts by its counter, and unknown
+// suffix text counts as 0 (sorts before "-rc1"). So v1.3.0-rc1 < v1.3.0-rc2
+// < v1.4.0 and v1.5.0-rc2 < v1.5.0.
+static int prereleaseSortKey(const char* s) {
+  if (*s != '-') return 0x7FFFFFFF; // final release: after every -rcN
+  s++;
+  while (*s != 0 && (*s < '0' || *s > '9')) s++; // skip the tag text ("rc")
+  int n = 0;
+  while (*s >= '0' && *s <= '9') {
+    n = n * 10 + (*s - '0');
+    s++;
+  }
+  return n;
+}
+
 bool LusoDefaults::versionLessThan(const char *version, const char *threshold) {
   if (!version || !*version) {
     return true;
   }
   if (version[0] == 'v' || version[0] == 'V') {
     version++;
+  }
+  if (threshold[0] == 'v' || threshold[0] == 'V') {
+    threshold++;
   }
 
   for (int i = 0; i < 3; i++) {
@@ -149,5 +168,7 @@ bool LusoDefaults::versionLessThan(const char *version, const char *threshold) {
       threshold++;
     }
   }
-  return false; // equal
+
+  // Equal numeric components: pre-release suffixes break the tie
+  return prereleaseSortKey(version) < prereleaseSortKey(threshold);
 }
