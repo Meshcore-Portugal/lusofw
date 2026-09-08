@@ -12,8 +12,6 @@
 #define ES_REGION_NAME "#es"
 static const bool ES_IN_EUROPE = true;
 
-#ifdef ENABLE_REGION_MACRO
-
 // --- Macro Regiões (2, DUMMY) ---
 static const GeoPoint poly_es_macro_norte_0[] PROGMEM = {
     {44.0, -9.0},
@@ -44,13 +42,6 @@ static const RegionPolygon ES_MACRO_REGIONS[] = {
     {"#es-sur",   rings_es_macro_sur, 1},
 };
 static const int NUM_ES_MACRO_REGIONS = sizeof(ES_MACRO_REGIONS) / sizeof(ES_MACRO_REGIONS[0]);
-
-#else
-static const RegionPolygon* const ES_MACRO_REGIONS = nullptr;
-static const int NUM_ES_MACRO_REGIONS = 0;
-#endif // ENABLE_REGION_MACRO
-
-#ifdef ENABLE_REGION_DISTRICTS
 
 // --- Distritos (2, DUMMY) ---
 static const GeoPoint poly_es_districts_madrid_0[] PROGMEM = {
@@ -83,20 +74,15 @@ static const RegionPolygon ES_DISTRICTS[] = {
 };
 static const int NUM_ES_DISTRICTS = sizeof(ES_DISTRICTS) / sizeof(ES_DISTRICTS[0]);
 
-#else
-static const RegionPolygon* const ES_DISTRICTS = nullptr;
-static const int NUM_ES_DISTRICTS = 0;
-#endif // ENABLE_REGION_DISTRICTS
-
 // No-GPS fallback: node-name prefix -> ONE district + ONE macro region (DUMMY)
 static const FallbackRegion fallback_ES_MA[] = {
-    {"#es-madrid", KIND_DISTRICT},
-    {"#es-sur",    KIND_MACRO},
+    {"#es-madrid"},
+    {"#es-sur"},
 };
 
 static const FallbackRegion fallback_ES_BA[] = {
-    {"#es-barcelona", KIND_DISTRICT},
-    {"#es-norte",     KIND_MACRO},
+    {"#es-barcelona"},
+    {"#es-norte"},
 };
 
 static const RegionFallback ES_FALLBACK_REGIONS[] = {

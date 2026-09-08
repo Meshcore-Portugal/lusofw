@@ -13,8 +13,6 @@
 #define BR_REGION_NAME "#br"
 static const bool BR_IN_EUROPE = false;
 
-#ifdef ENABLE_REGION_MACRO
-
 // --- Macro Regiões (2, DUMMY) ---
 static const GeoPoint poly_br_macro_norte_0[] PROGMEM = {
     {  0.0, -70.0},
@@ -45,13 +43,6 @@ static const RegionPolygon BR_MACRO_REGIONS[] = {
     {"#br-sudeste", rings_br_macro_sudeste, 1},
 };
 static const int NUM_BR_MACRO_REGIONS = sizeof(BR_MACRO_REGIONS) / sizeof(BR_MACRO_REGIONS[0]);
-
-#else
-static const RegionPolygon* const BR_MACRO_REGIONS = nullptr;
-static const int NUM_BR_MACRO_REGIONS = 0;
-#endif // ENABLE_REGION_MACRO
-
-#ifdef ENABLE_REGION_DISTRICTS
 
 // --- Distritos / estados (2, DUMMY) ---
 static const GeoPoint poly_br_districts_sao_paulo_0[] PROGMEM = {
@@ -84,20 +75,15 @@ static const RegionPolygon BR_DISTRICTS[] = {
 };
 static const int NUM_BR_DISTRICTS = sizeof(BR_DISTRICTS) / sizeof(BR_DISTRICTS[0]);
 
-#else
-static const RegionPolygon* const BR_DISTRICTS = nullptr;
-static const int NUM_BR_DISTRICTS = 0;
-#endif // ENABLE_REGION_DISTRICTS
-
 // No-GPS fallback: node-name prefix -> ONE district + ONE macro region (DUMMY)
 static const FallbackRegion fallback_BR_SP[] = {
-    {"#br-sao-paulo", KIND_DISTRICT},
-    {"#br-sudeste",   KIND_MACRO},
+    {"#br-sao-paulo"},
+    {"#br-sudeste"},
 };
 
 static const FallbackRegion fallback_BR_RJ[] = {
-    {"#br-rio-de-janeiro", KIND_DISTRICT},
-    {"#br-sudeste",        KIND_MACRO},
+    {"#br-rio-de-janeiro"},
+    {"#br-sudeste"},
 };
 
 static const RegionFallback BR_FALLBACK_REGIONS[] = {

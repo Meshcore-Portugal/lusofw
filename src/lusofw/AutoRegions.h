@@ -21,17 +21,9 @@ struct RegionPolygon {
   uint8_t ring_count;
 };
 
-// Region hierarchy levels. A name normally belongs to one level; the tags let
-// the fallback catalog state which level each entry refers to.
-enum RegionKind : uint8_t {
-  KIND_MACRO    = 1 << 0,
-  KIND_DISTRICT = 1 << 1,
-};
-
-// One no-GPS fallback assignment: region name plus the level it belongs to.
+// One no-GPS fallback assignment: a region name.
 struct FallbackRegion {
   const char* name;
-  uint8_t kinds;
 };
 
 // Node-name prefix (e.g. "AV") -> regions a node there belongs to.
@@ -41,9 +33,8 @@ struct RegionFallback {
   int num_regions;
 };
 
-// One compiled-in country: identity plus its three region layers. Disabled
-// hierarchy levels appear as null tables with a zero count. Countries are
-// registered in AutoRegions.cpp (ENABLED_COUNTRIES); registry order is the
+// One compiled-in country: identity plus its three region layers. Countries
+// are registered in AutoRegions.cpp (ENABLED_COUNTRIES); registry order is the
 // fallback prefix priority order.
 struct CountryRegions {
   const char* name; // "#pt"
@@ -55,6 +46,15 @@ struct CountryRegions {
   const RegionFallback* fallback_regions;
   int num_fallback_regions;
 };
+
+// Self-pairs a country's tables with their own counts, so a registry row can
+// never mix one table with another's count (a hand-written 8-field row could,
+// and a swapped pair reads past the shorter array with no runtime check).
+#define DECLARE_COUNTRY(cc) \
+    {cc##_REGION_NAME, cc##_IN_EUROPE, \
+     cc##_MACRO_REGIONS, NUM_##cc##_MACRO_REGIONS, \
+     cc##_DISTRICTS, NUM_##cc##_DISTRICTS, \
+     cc##_FALLBACK_REGIONS, NUM_##cc##_FALLBACK_REGIONS}
 
 // Automatic geographical region assignment.
 //

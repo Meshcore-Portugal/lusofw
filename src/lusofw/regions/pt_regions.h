@@ -46,9 +46,6 @@
 #define PT_REGION_NAME "#pt"
 static const bool PT_IN_EUROPE = true;
 
-
-#ifdef ENABLE_REGION_DISTRICTS
-
 // --- Distritos (29) ---
 
 static const GeoPoint poly_districts_aveiro_0[] PROGMEM = {
@@ -1804,13 +1801,6 @@ static const RegionPolygon PT_DISTRICTS[] = {
 };
 static const int NUM_PT_DISTRICTS = sizeof(PT_DISTRICTS) / sizeof(PT_DISTRICTS[0]);
 
-#else
-static const RegionPolygon* const PT_DISTRICTS = nullptr;
-static const int NUM_PT_DISTRICTS = 0;
-#endif // ENABLE_REGION_DISTRICTS
-
-#ifdef ENABLE_REGION_MACRO
-
 // --- Macro Regiões (7) ---
 
 static const GeoPoint poly_macro_alentejo_0[] PROGMEM = {
@@ -2674,11 +2664,6 @@ static const RegionPolygon PT_MACRO_REGIONS[] = {
 };
 static const int NUM_PT_MACRO_REGIONS = sizeof(PT_MACRO_REGIONS) / sizeof(PT_MACRO_REGIONS[0]);
 
-#else
-static const RegionPolygon* const PT_MACRO_REGIONS = nullptr;
-static const int NUM_PT_MACRO_REGIONS = 0;
-#endif // ENABLE_REGION_MACRO
-
 // ---------------------------------------------------------------------------
 // No-GPS fallback: node-name prefix -> ONE district + ONE macro region
 // (Apenas Distrito alvo + Macro Região). Setúbal straddles two macro regions
@@ -2686,101 +2671,101 @@ static const int NUM_PT_MACRO_REGIONS = 0;
 // (Lisboa Vale do Tejo) side.
 // ---------------------------------------------------------------------------
 static const FallbackRegion fallback_AV[] = {
-    {"#pt-aveiro", KIND_DISTRICT},
-    {"#pt-centro", KIND_MACRO},
+    {"#pt-aveiro"},
+    {"#pt-centro"},
 };
 
 static const FallbackRegion fallback_AC[] = {
-    {"#pt-acores", KIND_MACRO},
+    {"#pt-acores"},
 };
 
 static const FallbackRegion fallback_BE[] = {
-    {"#pt-beja",     KIND_DISTRICT},
-    {"#pt-alentejo", KIND_MACRO},
+    {"#pt-beja"},
+    {"#pt-alentejo"},
 };
 
 static const FallbackRegion fallback_BR[] = {
-    {"#pt-braga", KIND_DISTRICT},
-    {"#pt-norte", KIND_MACRO},
+    {"#pt-braga"},
+    {"#pt-norte"},
 };
 
 static const FallbackRegion fallback_BA[] = {
-    {"#pt-braganca", KIND_DISTRICT},
-    {"#pt-norte",    KIND_MACRO},
+    {"#pt-braganca"},
+    {"#pt-norte"},
 };
 
 static const FallbackRegion fallback_CB[] = {
-    {"#pt-castelo-branco", KIND_DISTRICT},
-    {"#pt-centro",         KIND_MACRO},
+    {"#pt-castelo-branco"},
+    {"#pt-centro"},
 };
 
 static const FallbackRegion fallback_CO[] = {
-    {"#pt-coimbra", KIND_DISTRICT},
-    {"#pt-centro",  KIND_MACRO},
+    {"#pt-coimbra"},
+    {"#pt-centro"},
 };
 
 static const FallbackRegion fallback_FA[] = {
-    {"#pt-faro",    KIND_DISTRICT},
-    {"#pt-algarve", KIND_MACRO},
+    {"#pt-faro"},
+    {"#pt-algarve"},
 };
 
 static const FallbackRegion fallback_GU[] = {
-    {"#pt-guarda", KIND_DISTRICT},
-    {"#pt-centro", KIND_MACRO},
+    {"#pt-guarda"},
+    {"#pt-centro"},
 };
 
 static const FallbackRegion fallback_LE[] = {
-    {"#pt-leiria", KIND_DISTRICT},
-    {"#pt-centro", KIND_MACRO},
+    {"#pt-leiria"},
+    {"#pt-centro"},
 };
 
 static const FallbackRegion fallback_LI[] = {
-    {"#pt-lisboa",              KIND_DISTRICT},
-    {"#pt-lisboa-vale-do-tejo", KIND_MACRO},
+    {"#pt-lisboa"},
+    {"#pt-lisboa-vale-do-tejo"},
 };
 
 static const FallbackRegion fallback_MA[] = {
-    {"#pt-madeira", KIND_MACRO},
+    {"#pt-madeira"},
 };
 
 static const FallbackRegion fallback_PA[] = {
-    {"#pt-portalegre", KIND_DISTRICT},
-    {"#pt-alentejo",   KIND_MACRO},
+    {"#pt-portalegre"},
+    {"#pt-alentejo"},
 };
 
 static const FallbackRegion fallback_PO[] = {
-    {"#pt-porto", KIND_DISTRICT},
-    {"#pt-norte", KIND_MACRO},
+    {"#pt-porto"},
+    {"#pt-norte"},
 };
 
 static const FallbackRegion fallback_SA[] = {
-    {"#pt-santarem",            KIND_DISTRICT},
-    {"#pt-lisboa-vale-do-tejo", KIND_MACRO},
+    {"#pt-santarem"},
+    {"#pt-lisboa-vale-do-tejo"},
 };
 
 static const FallbackRegion fallback_SE[] = {
-    {"#pt-setubal",             KIND_DISTRICT},
-    {"#pt-lisboa-vale-do-tejo", KIND_MACRO},
+    {"#pt-setubal"},
+    {"#pt-lisboa-vale-do-tejo"},
 };
 
 static const FallbackRegion fallback_VC[] = {
-    {"#pt-viana-do-castelo", KIND_DISTRICT},
-    {"#pt-norte",            KIND_MACRO},
+    {"#pt-viana-do-castelo"},
+    {"#pt-norte"},
 };
 
 static const FallbackRegion fallback_VR[] = {
-    {"#pt-vila-real", KIND_DISTRICT},
-    {"#pt-norte",     KIND_MACRO},
+    {"#pt-vila-real"},
+    {"#pt-norte"},
 };
 
 static const FallbackRegion fallback_VI[] = {
-    {"#pt-viseu",  KIND_DISTRICT},
-    {"#pt-centro", KIND_MACRO},
+    {"#pt-viseu"},
+    {"#pt-centro"},
 };
 
 static const FallbackRegion fallback_EV[] = {
-    {"#pt-evora",    KIND_DISTRICT},
-    {"#pt-alentejo", KIND_MACRO},
+    {"#pt-evora"},
+    {"#pt-alentejo"},
 };
 
 static const RegionFallback PT_FALLBACK_REGIONS[] = {

@@ -5,10 +5,6 @@
 #include <Arduino.h>
 #include <helpers/TxtDataHelpers.h>
 
-// Enable or disable specific region hierarchy levels (within every country)
-#define ENABLE_REGION_DISTRICTS
-#define ENABLE_REGION_MACRO
-
 // Country selection — enable any combination. Each enabled country brings its
 // three layers (macro regions, districts, no-GPS fallback catalog). Registry
 // order below is the fallback prefix priority order: prefixes are only unique
@@ -45,13 +41,13 @@
 // Registry of the compiled-in countries, in fallback priority order.
 static const CountryRegions ENABLED_COUNTRIES[] = {
 #ifdef ENABLE_COUNTRY_PT
-    {PT_REGION_NAME, PT_IN_EUROPE, PT_MACRO_REGIONS, NUM_PT_MACRO_REGIONS, PT_DISTRICTS, NUM_PT_DISTRICTS, PT_FALLBACK_REGIONS, NUM_PT_FALLBACK_REGIONS},
+    DECLARE_COUNTRY(PT),
 #endif
 #ifdef ENABLE_COUNTRY_ES
-    {ES_REGION_NAME, ES_IN_EUROPE, ES_MACRO_REGIONS, NUM_ES_MACRO_REGIONS, ES_DISTRICTS, NUM_ES_DISTRICTS, ES_FALLBACK_REGIONS, NUM_ES_FALLBACK_REGIONS},
+    DECLARE_COUNTRY(ES),
 #endif
 #ifdef ENABLE_COUNTRY_BR
-    {BR_REGION_NAME, BR_IN_EUROPE, BR_MACRO_REGIONS, NUM_BR_MACRO_REGIONS, BR_DISTRICTS, NUM_BR_DISTRICTS, BR_FALLBACK_REGIONS, NUM_BR_FALLBACK_REGIONS},
+    DECLARE_COUNTRY(BR),
 #endif
 };
 static const int NUM_ENABLED_COUNTRIES = sizeof(ENABLED_COUNTRIES) / sizeof(ENABLED_COUNTRIES[0]);
@@ -75,18 +71,6 @@ static bool isPointInPolygon(float lat, float lon, const GeoPoint* poly, int num
     return inside;
 }
 
-// Which hierarchy levels are compiled in; fallback entries are filtered by this mask.
-static uint8_t enabledRegionKinds() {
-    uint8_t k = 0;
-#ifdef ENABLE_REGION_MACRO
-    k |= KIND_MACRO;
-#endif
-#ifdef ENABLE_REGION_DISTRICTS
-    k |= KIND_DISTRICT;
-#endif
-    return k;
-}
-
 bool AutoRegions::inject_hierarchy(RegionMap& region_map, const bool* country_matched, bool create_eu) {
     bool changed = false;
     if (create_eu) {
@@ -96,6 +80,8 @@ bool AutoRegions::inject_hierarchy(RegionMap& region_map, const bool* country_ma
             if (r) {
                 r->flags |= REGION_AUTO_ASSIGN;
                 changed = true;
+            } else {
+                MESH_DEBUG_PRINTLN("Auto-Regions: could not add '#europe' (region map full)");
             }
         }
     }
@@ -109,6 +95,8 @@ bool AutoRegions::inject_hierarchy(RegionMap& region_map, const bool* country_ma
             if (r) {
                 r->flags |= REGION_AUTO_ASSIGN;
                 changed = true;
+            } else {
+                MESH_DEBUG_PRINTLN("Auto-Regions: could not add '%s' (region map full)", name);
             }
         } else {
             // Future improvement: re-parenting does not check for cycles. A user
@@ -175,6 +163,8 @@ bool AutoRegions::apply_dynamic_region(RegionMap& region_map, const char* reg_na
         if (dynamic_region) {
             dynamic_region->flags |= REGION_AUTO_ASSIGN;
             changed = true;
+        } else {
+            MESH_DEBUG_PRINTLN("Auto-Regions: could not add '%s' (region map full)", reg_name);
         }
     } else if (dynamic_region->parent != parent_id) {
         dynamic_region->parent = parent_id;
@@ -282,15 +272,7 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
         return false;
     };
 
-    // Coordinate evaluation needs compiled-in polygon data; with both hierarchy
-    // levels disabled there is none, so fall back to the name-prefix path —
-    // nodes of the same name then get the same country assignment either way.
-    bool has_polygon_data = false;
-    for (int c = 0; c < NUM_ENABLED_COUNTRIES && !has_polygon_data; c++) {
-        has_polygon_data = ENABLED_COUNTRIES[c].num_macro_regions > 0 || ENABLED_COUNTRIES[c].num_districts > 0;
-    }
-
-    if (loc_available && has_polygon_data) {
+    if (loc_available) {
         auto evaluate_polygon_array = [&](int country_idx, const RegionPolygon* polys, int count) {
             for (int i = 0; i < count; i++) {
                 for (int j = 0; j < polys[i].ring_count; j++) {
@@ -317,8 +299,6 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
             prefix[1] = toupper(prefs.node_name[1]);
             prefix[2] = '\0';
 
-            const uint8_t enabled_kinds = enabledRegionKinds();
-
             // First country claiming the prefix wins (registry order).
             bool prefix_claimed = false;
             for (int c = 0; c < NUM_ENABLED_COUNTRIES && !prefix_claimed; c++) {
@@ -330,7 +310,6 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
                     is_in_europe = country.in_europe;
                     for (int j = 0; j < country.fallback_regions[i].num_regions; j++) {
                         const FallbackRegion& fr = country.fallback_regions[i].regions[j];
-                        if (!(fr.kinds & enabled_kinds)) continue; // level not compiled in
                         add_valid_region(fr.name);
                     }
                     break;
