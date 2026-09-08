@@ -20,8 +20,9 @@
  * key changes, so the schedule is stable across reboots.
  *
  * Without a usable RTC the wall clock is unknown; the schedule then degrades
- * to the same slot measured from boot, with jitter mixed in from millis() so
- * a fleet of nodes rebooting together still spreads out.
+ * to the same identity-derived slot measured from boot, with jitter varied per
+ * uptime window. The uptime clock wraps every ~49.7 days, so one fallback
+ * window can be irregular at the wrap.
  */
 class SmartAdverts {
 public:
@@ -29,16 +30,20 @@ public:
   static inline const uint32_t WINDOW_SIZE_SECONDS = 23ul * 3600;
   // Adverts whose slotmates collide are separated by up to this much.
   static inline const int32_t JITTER_MAX_SECONDS = 3;
-  // Epochs below this (Jan 1, 2020) mean the RTC has no usable time.
-  static inline const uint32_t MIN_VALID_EPOCH = 1577836800;
+  // Epochs below this (Jan 1, 2026) mean the RTC has no usable time.
+  static inline const uint32_t MIN_VALID_EPOCH = 1767225600;
+
+  // The caller converts the wait to milliseconds and passes it as an int.
+  static_assert(((int64_t)WINDOW_SIZE_SECONDS + 2 * JITTER_MAX_SECONDS + 1) * 1000 <= 2147483647LL,
+                "smart advert wait must fit in Dispatcher::futureMillis(int)");
 
   /**
    * \brief  Seconds from `now_epoch`/`now_millis` until this node's next smart
-   *         flood advert slot (always > 0, except the no-RTC clamp at 0).
+   *         flood advert slot (always 1..82,806 seconds).
    * \param  name        node name (hashed together with the key; NULL -> "")
    * \param  pub_key     node public key (first 4 bytes are hashed)
    * \param  now_epoch   current wall-clock time (getRTCClock()->getCurrentTime())
-   * \param  now_millis  current uptime millis(), used for jitter when no RTC
+   * \param  now_millis  current uptime millis(), used for scheduling when no RTC
    */
   static uint32_t nextAdvertWaitSeconds(const char* name, const uint8_t* pub_key,
                                         uint32_t now_epoch, uint32_t now_millis) {
@@ -49,34 +54,49 @@ public:
 
     const uint32_t my_offset = hash % WINDOW_SIZE_SECONDS;
 
-    // No RTC: rely on uptime millis for jitter that varies across reboots.
+    // No RTC: anchor the 23h window to uptime. Recompute jitter whenever the
+    // candidate advances, so re-arming after a slot cannot reveal another slot
+    // a few seconds later in the same window.
     if (now_epoch < MIN_VALID_EPOCH) {
-      int32_t random_jitter = ((hash ^ now_millis) % 7) - 3;
-      uint32_t fallback_wait = my_offset + random_jitter;
-      if ((int32_t)fallback_wait < 0) {
-        fallback_wait = 0;   // prevent underflow
+      const uint32_t window_ms = WINDOW_SIZE_SECONDS * 1000ul;
+      int64_t current_window_start = (int64_t)now_millis - (int64_t)(now_millis % window_ms);
+      uint32_t window_index = (uint32_t)(current_window_start / window_ms);
+      int32_t random_jitter_ms =
+          ((int32_t)((hash ^ window_index) % ((JITTER_MAX_SECONDS * 2) + 1))
+           - JITTER_MAX_SECONDS) * 1000;
+      int64_t target_millis = current_window_start + (int64_t)my_offset * 1000 + random_jitter_ms;
+
+      while (target_millis <= (int64_t)now_millis) {
+        current_window_start += (int64_t)window_ms;
+        window_index++;
+        random_jitter_ms =
+            ((int32_t)((hash ^ window_index) % ((JITTER_MAX_SECONDS * 2) + 1))
+             - JITTER_MAX_SECONDS) * 1000;
+        target_millis = current_window_start + (int64_t)my_offset * 1000 + random_jitter_ms;
       }
-      return fallback_wait;
+
+      int64_t wait_ms = target_millis - (int64_t)now_millis;
+      return (uint32_t)((wait_ms + 999) / 1000); // round up: never return zero
     }
 
-    // With RTC: schedule for the next occurrence in the global calendar.
-    uint32_t current_cycle_start = now_epoch - (now_epoch % WINDOW_SIZE_SECONDS);
-    uint32_t my_target_epoch = current_cycle_start + my_offset;
-    int32_t random_jitter = ((hash ^ current_cycle_start) % ((JITTER_MAX_SECONDS * 2) + 1)) - JITTER_MAX_SECONDS;
-    int64_t target_epoch = (int64_t)my_target_epoch + random_jitter;
+    // With RTC: keep cycle arithmetic wider than the epoch input so advancing
+    // across the uint32 boundary cannot wrap back into the past.
+    int64_t current_cycle_start = (int64_t)now_epoch - (int64_t)(now_epoch % WINDOW_SIZE_SECONDS);
+    int32_t random_jitter =
+        (int32_t)((hash ^ (uint32_t)current_cycle_start) % ((JITTER_MAX_SECONDS * 2) + 1))
+        - JITTER_MAX_SECONDS;
+    int64_t target_epoch = current_cycle_start + (int64_t)my_offset + random_jitter;
 
-    // If the calculated target for the current cycle is already in the past or
-    // exactly right now, advance to the next cycle to avoid firing twice in a row.
-    if ((int64_t)now_epoch >= target_epoch) {
-      current_cycle_start += WINDOW_SIZE_SECONDS;
-      my_target_epoch = current_cycle_start + my_offset;
-
-      // Re-calculate jitter for the new cycle.
-      random_jitter = ((hash ^ current_cycle_start) % ((JITTER_MAX_SECONDS * 2) + 1)) - JITTER_MAX_SECONDS;
-      target_epoch = (int64_t)my_target_epoch + random_jitter;
+    // A near-zero slot with negative jitter can still precede the cycle start,
+    // so advance until the target is strictly in the future (at most twice).
+    while (target_epoch <= (int64_t)now_epoch) {
+      current_cycle_start += (int64_t)WINDOW_SIZE_SECONDS;
+      random_jitter =
+          (int32_t)((hash ^ (uint32_t)current_cycle_start) % ((JITTER_MAX_SECONDS * 2) + 1))
+          - JITTER_MAX_SECONDS;
+      target_epoch = current_cycle_start + (int64_t)my_offset + random_jitter;
     }
 
-    // target_epoch is now strictly greater than now_epoch.
     return (uint32_t)(target_epoch - (int64_t)now_epoch);
   }
 };
