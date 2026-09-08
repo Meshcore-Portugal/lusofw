@@ -1049,6 +1049,11 @@ void MyMesh::begin(FILESYSTEM *fs) {
     if (r) {
       region_map.getTransportKeysFor(*r, &default_scope, 1);
     } else {
+      // TODO: only define DEFAULT_FLOOD_SCOPE_NAME on the next iteration of the
+      // network, once critical mass has already migrated to having scopes.
+      // Until then, repeaters that cannot match the scope's transport code
+      // refuse to forward it, and flood packets die at the first un-migrated
+      // hop instead of travelling far enough.
 #ifdef DEFAULT_FLOOD_SCOPE_NAME
       r = region_map.findByName(DEFAULT_FLOOD_SCOPE_NAME);
       if (r == NULL) {
