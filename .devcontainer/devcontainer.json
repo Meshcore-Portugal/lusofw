@@ -28,7 +28,13 @@
 	"customizations": {
 		"vscode": {
 			"settings": {
-				"editor.formatOnSave": false,
+				"editor.detectIndentation": true,
+				"editor.formatOnPaste": true,
+				"editor.formatOnSave": true,
+				"files.eol": "\n",
+				"files.insertFinalNewline": true,
+				"files.trimFinalNewlines": true,
+				"files.trimTrailingWhitespace": true,
 				"platformio-ide.disablePIOHomeStartup": true,
 				"remote.autoForwardPorts": false,
 				"workbench.colorCustomizations": {
@@ -36,7 +42,23 @@
 					"titleBar.activeForeground": "#ffffff",
 					"titleBar.inactiveBackground": "#0d1a2b99",
 					"titleBar.inactiveForeground": "#ffffff99"
-				}
+				},
+				"[cpp]": {
+					"editor.defaultFormatter": "ms-vscode.cpptools",
+					"editor.formatOnSave": false,
+					"editor.formatOnPaste": false
+				},
+				"[c]": {
+					"editor.defaultFormatter": "ms-vscode.cpptools",
+					"editor.formatOnSave": false,
+					"editor.formatOnPaste": false
+				},
+				"[h]": {
+					"editor.defaultFormatter": "ms-vscode.cpptools",
+					"editor.formatOnSave": false,
+					"editor.formatOnPaste": false
+				},
+				"C_Cpp.clang_format_style": "file"
 			},
 			"extensions": [
 				"Anthropic.claude-code",

@@ -10,8 +10,7 @@ mkdir -p ${HOME}/.claude
 cat > ${HOME}/.claude/settings.json <<'EOF'
 {
 	"permissions": {
-		"defaultMode": "bypassPermissions",
-		"skipDangerousModePermissionPrompt": true
+		"defaultMode": "bypassPermissions"
 	},
 	 "env": {
 		"ANTHROPIC_AUTH_TOKEN": "your_zai_api_key",
