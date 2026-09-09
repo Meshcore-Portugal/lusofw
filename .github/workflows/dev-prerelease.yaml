@@ -114,6 +114,7 @@ jobs:
           - LilyGo_T3S3_sx1262_repeater_bridge_espnow
           - LilyGo_T3S3_sx1276_repeater
           - LilyGo_T3S3_sx1276_repeater_bridge_espnow
+          - LilyGo_TBeam_1W_repeater
           - LilyGo_TLora_V2_1_1_6_repeater
           - LilyGo_TLora_V2_1_1_6_repeater_bridge_espnow
           - LilyGo_TLora_V2_1_1_6_repeater_bridge_rs232
@@ -122,6 +123,7 @@ jobs:
           - RAK_3112_repeater
           - RAK_3112_repeater_bridge_espnow
           - RAK_3112_repeater_bridge_rs232
+          - RAK_3401_repeater
           - RAK_4631_repeater
           - RAK_4631_repeater_bridge_rs232_serial1
           - RAK_4631_repeater_bridge_rs232_serial2
