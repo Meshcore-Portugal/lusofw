@@ -242,7 +242,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `bw`: Bandwidth in kHz (7.8-500)
 - `sf`: Spreading factor (5-12)
 - `cr`: Coding rate (5-8)
-- `timeout_mins`: Duration in minutes (must be > 0)
+- `timeout_mins`: Duration in minutes (must be > 0; values above 35791 saturate at 35791, about 24.8 days)
 
 **Note:** This is not saved to preferences and will clear on reboot
 

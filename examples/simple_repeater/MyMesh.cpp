@@ -1112,6 +1112,11 @@ void MyMesh::sendFloodScoped(const TransportKey& scope, mesh::Packet* pkt, uint3
 }
 
 void MyMesh::applyTempRadioParams(float freq, float bw, uint8_t sf, uint8_t cr, int timeout_mins) {
+  // futureMillis() takes an int: 2000 + mins*60000 overflows it above 35,791
+  // minutes, which would wrap the revert time into the past and collapse the
+  // window to the 2 s apply delay. Saturate at the largest int-safe window.
+  if (timeout_mins > 35791) timeout_mins = 35791;
+
   set_radio_at = futureMillis(2000); // give CLI reply some time to be sent back, before applying temp radio params
   pending_freq = freq;
   pending_bw = bw;
