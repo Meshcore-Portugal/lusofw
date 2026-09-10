@@ -135,6 +135,15 @@ void LusoDefaults::writeVersion(FILESYSTEM *fs, const char *version) {
   }
 }
 
+// Accumulates a decimal digit into n, saturating just under INT_MAX: an
+// overlong digit run parses to a bounded value that still compares
+// consistently, and a pre-release counter never reaches the final-release
+// sort key.
+static int accumulateDigit(int n, char c) {
+  const int satMax = 0x7FFFFFFF - 1;
+  return (n > (satMax - (c - '0')) / 10) ? satMax : n * 10 + (c - '0');
+}
+
 // Sort key of an optional pre-release suffix: a final release (no suffix)
 // sorts after every pre-release, "-rc2" sorts by its counter, and unknown
 // suffix text counts as 0 (sorts before "-rc1"). So v1.3.0-rc1 < v1.3.0-rc2
@@ -145,7 +154,7 @@ static int prereleaseSortKey(const char* s) {
   while (*s != 0 && (*s < '0' || *s > '9')) s++; // skip the tag text ("rc")
   int n = 0;
   while (*s >= '0' && *s <= '9') {
-    n = n * 10 + (*s - '0');
+    n = accumulateDigit(n, *s);
     s++;
   }
   return n;
@@ -165,12 +174,12 @@ bool LusoDefaults::versionLessThan(const char *version, const char *threshold) {
   for (int i = 0; i < 3; i++) {
     int v = 0;
     while (*version >= '0' && *version <= '9') {
-      v = v * 10 + (*version - '0');
+      v = accumulateDigit(v, *version);
       version++;
     }
     int t = 0;
     while (*threshold >= '0' && *threshold <= '9') {
-      t = t * 10 + (*threshold - '0');
+      t = accumulateDigit(t, *threshold);
       threshold++;
     }
     if (v != t) {
