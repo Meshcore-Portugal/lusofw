@@ -33,6 +33,10 @@ public:
   // (or compromised) timekeeper signing one absurdly large timestamp, which
   // would otherwise wedge the clock ahead of true time until real time caught
   // up (or the next reboot).
+  // That guard cannot apply to the first trusted advert after a reboot (mark
+  // still zero): re-anchoring then requires trusting that first source
+  // outright, and a replayed absurd timestamp accepted there wedges the clock
+  // and RTC until the next reboot, where the same replay works again.
   static inline const uint32_t MAX_FORWARD_SECS = 365ul * 24 * 60 * 60;
 
   /**
