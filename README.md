@@ -17,7 +17,7 @@ This is not intended to be a hard fork of the upstream repository. Instead, luso
 
 lusofw layers Portugal-focused defaults and quality-of-life enhancements on top of MeshCore:
 
-- **Automatic region assignment (AutoRegions)** — repeaters derive their geographic region (EU → country → district → NUTS2/CIMS) from their stored or GPS coordinates, with no manual setup.
+- **Automatic region assignment (AutoRegions)** — repeaters derive their geographic regions (#europe → #pt → districts and macro regions) from the coordinates stored in their preferences, or from their node-name prefix when no coordinates are set, with no manual setup.
 - **Smart flood adverts** — deterministic, collision-resistant scheduling across a rolling 23-hour window; each node's slot is derived from its name and public key.
 - **Hardware CAD listen-before-talk** — channel activity is sensed before every transmit, enabled by default to reduce collisions.
 - **Network time synchronization** — radio clocks sync from a trusted network time source, with replay-protected updates.
