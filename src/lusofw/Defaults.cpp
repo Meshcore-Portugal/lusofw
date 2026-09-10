@@ -37,9 +37,15 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
 #endif
   }
 
-  if (versionLessThan(version, "2026.9.1")) {
-    // Flag user-customized radio settings so AutoRegions leaves them alone
+  if (versionLessThan(version, "2026.9.1-rc4")) {
+    // Bootstrap the manual-radio latch for prefs that predate the field
+    // (first shipped in v2026.9.1-rc4). For rc4+ the persisted latch is
+    // authoritative: AutoRegions has since written derived af/tx into those
+    // prefs, and re-inferring would latch them as user-set.
     prefs.radio_manual = (prefs.airtime_factor != 1.0f || prefs.tx_power_dbm != LORA_TX_POWER) ? 1 : 0;
+  }
+
+  if (versionLessThan(version, "2026.9.1")) {
 
 #if defined(ENABLE_AUTO_REGIONS)
     // Retire the legacy "#portugal" region. applyDefaults owns the region map
