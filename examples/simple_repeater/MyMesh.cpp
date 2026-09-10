@@ -1304,8 +1304,11 @@ void MyMesh::onNodeConfigChanged() {
   // Re-evaluate and reassign geographical regions based on the new name/coordinates
   // (manual radio commands latch prefs.radio_manual themselves in CommonCLI)
   AutoRegions::checkRegionAutoAssign(region_map, _prefs, _fs);
-  // The re-evaluation may have re-derived tx power — apply it to the radio
-  radio_driver.setTxPower(_prefs.tx_power_dbm);
+  // The re-evaluation may have re-derived tx power — apply it to the radio,
+  // unless a temp-radio window is open (its apply/revert timers own tx power)
+  if (!revert_radio_at) {
+    radio_driver.setTxPower(_prefs.tx_power_dbm);
+  }
 #endif
 }
 
