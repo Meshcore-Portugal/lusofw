@@ -1041,7 +1041,14 @@ void MyMesh::begin(FILESYSTEM *fs) {
 
   acl.load(_fs, self_id);
   // TODO: key_store.begin();
-  region_map.load(_fs);
+  if (!region_map.load(_fs) && _fs->exists("/regions2")) {
+    // A missing file is the normal fresh-install case (Defaults treats it as
+    // benign); only a file that exists but will not load whole is a problem.
+    // A partial read (eg. power loss during save) still yields the entries
+    // read so far; the auto-assign engine rebuilds its own entries on the
+    // first evaluation, but user regions lost to the truncation stay lost.
+    MESH_DEBUG_PRINTLN("%s MyMesh::begin(): /regions2 unreadable (truncated or corrupt); continuing with a partial map", getLogDateTime());
+  }
 
   // establish default-scope
   {

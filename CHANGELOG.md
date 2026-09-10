@@ -26,6 +26,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 - RÁDIO: Em placas com amplificador de potência externo (LilyGo T-Beam 1W), a derivação regulamentar da UE passa a subtrair o ganho documentado do PA do limite de potência conduzida de cada sub-banda (`LUSOFW_TX_PA_GAIN`); a potência entregue no conector da antena deixa de exceder o limite da banda em cerca de 10 dB.
 - REPETIDOR: Os limitadores de cadência (pedidos anónimos e descoberta de vizinhos) reancoram a janela quando o relógio dá um salto para trás (correção do timekeeper), em vez de negarem as respostas durante todo o delta da correção.
 - REPETIDOR: O tempo limite do `tempradio` satura em 35 791 minutos (o máximo representável no temporizador interno), em vez de sofrer overflow aritmético e colapsar a janela para cerca de 2 segundos.
+- REPETIDOR: Um ficheiro `/regions2` existente mas ilegível ou truncado (por exemplo, por perda de alimentação durante a gravação) passa a ser reportado no arranque, em vez de carregar silenciosamente um mapa parcial; a ausência do ficheiro (instalação nova) mantém-se silenciosa.
 
 #### Melhorias
 
