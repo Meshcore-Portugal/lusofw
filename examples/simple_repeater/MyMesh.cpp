@@ -1168,6 +1168,11 @@ void MyMesh::updateFloodAdvertTimer() {
     next_flood_advert = 0; // stop the timer
   }
 #else  // ENABLE_SMART_ADVERTS
+  if (_prefs.flood_advert_interval == 0) {
+    next_flood_advert = 0; // stop the timer
+    return;
+  }
+
   const uint32_t now_epoch = getRTCClock()->getCurrentTime();
   const uint32_t wait_seconds = SmartAdverts::nextAdvertWaitSeconds(
       _prefs.node_name, self_id.pub_key, now_epoch, millis());
