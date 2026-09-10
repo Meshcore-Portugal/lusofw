@@ -22,7 +22,7 @@ lusofw layers Portugal-focused defaults and quality-of-life enhancements on top 
 - **Hardware CAD listen-before-talk** — channel activity is sensed before every transmit, enabled by default to reduce collisions.
 - **Network time synchronization** — radio clocks sync from a trusted network time source, with replay-protected updates.
 - **Loop detection** — enabled by default at minimal sensitivity to prevent packet storms.
-- **Version-aware defaults migration** — firmware upgrades apply curated defaults safely, tracked by a persisted version stamp.
+- **Version-aware defaults migration** — firmware upgrades apply curated defaults safely, tracked by a persisted version stamp; the managed settings (such as `cad`, `loop.detect` and `flood.advert.interval`) are reset to their firmware defaults on every version change, discarding user-set values.
 - **Airtime duty-cycle enforcement** — a token bucket keeps transmissions within regulatory limits.
 - **Environment sensors** — BME280, BMP280, INA3221, AHTx0 and SHTC3 supported out of the box.
 - **RS232 & ESP-NOW bridges** — integrate the mesh with external serial or Wi-Fi systems.

@@ -47,6 +47,10 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 - BUILD: Reorganizadas as build flags no platformio.ini.
 - BUILD: Adicionado o ambiente de build da ponte RS232 (`heltec_v4_repeater_bridge_rs232`) para o Heltec v4.
 
+### Notas
+
+- REPETIDOR: Em qualquer mudança de versão do firmware, as preferências `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval` e `advert.interval` são repostas para os valores predefinidos do firmware; os valores definidos pelo utilizador são descartados.
+
 ## [v2026.7.1] - 01/07/2026
 
 Based on MeshCore v1.16.0

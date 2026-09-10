@@ -463,6 +463,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ### Routing
 
+**Note:** On every firmware version change, lusofw resets the following settings to their firmware defaults, discarding any user-set values: `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval` and `advert.interval`.
+
 #### View or change this node's repeat flag
 **Usage:**
 - `get repeat`
