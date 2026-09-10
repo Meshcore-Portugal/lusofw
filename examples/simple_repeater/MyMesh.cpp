@@ -717,7 +717,7 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
 
 #ifdef ENABLE_NETWORK_TIME
   if (NetTimeSync::handleTimekeeperAdvert(id, timestamp, app_data, app_data_len,
-                                          packet->path_len, *getRTCClock())) {
+                                          packet->getPathHashCount(), *getRTCClock())) {
     updateFloodAdvertTimer();  // reschedule smart advert against new clock (cf. name change)
   }
 #endif

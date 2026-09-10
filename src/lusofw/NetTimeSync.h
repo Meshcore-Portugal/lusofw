@@ -43,7 +43,7 @@ public:
    */
   static bool handleTimekeeperAdvert(const mesh::Identity& id, uint32_t timestamp,
                                      const uint8_t* app_data, size_t app_data_len,
-                                     int path_len, mesh::RTCClock& clk);
+                                     int hop_count, mesh::RTCClock& clk);
 
   static uint32_t getHighWater();
 };

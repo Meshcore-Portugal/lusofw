@@ -40,10 +40,10 @@ static void accepted(uint32_t ts) {
 
 bool NetTimeSync::handleTimekeeperAdvert(const mesh::Identity& id, uint32_t timestamp,
                                          const uint8_t* app_data, size_t app_data_len,
-                                         int path_len, mesh::RTCClock& clk) {
+                                         int hop_count, mesh::RTCClock& clk) {
   // Reject implausible timestamps (anything before year 2026) and only trust
   // time sources heard within 10 hops (limits propagation skew/abuse).
-  if (timestamp < MIN_PLAUSIBLE_TS || path_len >= MAX_TIMEKEEPER_HOPS) return false;
+  if (timestamp < MIN_PLAUSIBLE_TS || hop_count >= MAX_TIMEKEEPER_HOPS) return false;
 
   AdvertDataParser parser(app_data, app_data_len);
   if (!(parser.isValid() && parser.getType() == ADV_TYPE_NONE)) return false;
