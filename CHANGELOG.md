@@ -7,7 +7,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 
 ### Funcionalidades
 
-- REPETIDOR: Atribuição automática de regiões geográficas a partir da localização do nó (coordenadas das preferências ou GPS).
+- REPETIDOR: Atribuição automática de regiões geográficas a partir das coordenadas guardadas nas preferências do nó.
 - RÁDIO: Novo modo automático para o limiar de interferência (`set int.thresh 255`, `get int.thresh` responde `auto`), guardado pela flag de build `LUSOFW_RADIO_INT_THR_AUTO`.
 - REPETIDOR: Adicionada proteção de adverts (`ENABLE_ADVERT_PROTECT`): o advert de cada repetidor remoto é repetido no máximo uma vez a cada 12 horas (por chave pública); os adverts duplicados continuam a ser processados localmente, mas já não são retransmitidos. Motivado por firmware muito antigo que entra frequentemente em boot loop e gera advert storms durante horas.
 
@@ -23,6 +23,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 - REPETIDOR: Removida a redução probabilística de flood adverts.
 - REPETIDOR: Corrigido um *buffer overflow* no acumulador de comandos série.
 - NRF52: Limpo o registo de retenção GPREGRET (0) no arranque e antes do SYSTEMOFF, evitando que um valor mágico de DFU residual faça o dispositivo arrancar no modo bootloader.
+- RÁDIO: Em placas com amplificador de potência externo (LilyGo T-Beam 1W), a derivação regulamentar da UE passa a subtrair o ganho documentado do PA do limite de potência conduzida de cada sub-banda (`LUSOFW_TX_PA_GAIN`); a potência entregue no conector da antena deixa de exceder o limite da banda em cerca de 10 dB.
 
 #### Melhorias
 
@@ -46,6 +47,10 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 - BUILD: Adicionada a variável `DISABLE_DEBUG` ao processo de build.
 - BUILD: Reorganizadas as build flags no platformio.ini.
 - BUILD: Adicionado o ambiente de build da ponte RS232 (`heltec_v4_repeater_bridge_rs232`) para o Heltec v4.
+
+### Notas
+
+- REPETIDOR: Em qualquer mudança de versão do firmware, as preferências `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval` e `advert.interval` são repostas para os valores predefinidos do firmware; os valores definidos pelo utilizador são descartados.
 
 ## [v2026.7.1] - 01/07/2026
 

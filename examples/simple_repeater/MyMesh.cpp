@@ -717,7 +717,7 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
 
 #ifdef ENABLE_NETWORK_TIME
   if (NetTimeSync::handleTimekeeperAdvert(id, timestamp, app_data, app_data_len,
-                                          packet->path_len, *getRTCClock())) {
+                                          packet->getPathHashCount(), *getRTCClock())) {
     updateFloodAdvertTimer();  // reschedule smart advert against new clock (cf. name change)
   }
 #endif
@@ -1168,6 +1168,11 @@ void MyMesh::updateFloodAdvertTimer() {
     next_flood_advert = 0; // stop the timer
   }
 #else  // ENABLE_SMART_ADVERTS
+  if (_prefs.flood_advert_interval == 0) {
+    next_flood_advert = 0; // stop the timer
+    return;
+  }
+
   const uint32_t now_epoch = getRTCClock()->getCurrentTime();
   const uint32_t wait_seconds = SmartAdverts::nextAdvertWaitSeconds(
       _prefs.node_name, self_id.pub_key, now_epoch, millis());
@@ -1304,8 +1309,11 @@ void MyMesh::onNodeConfigChanged() {
   // Re-evaluate and reassign geographical regions based on the new name/coordinates
   // (manual radio commands latch prefs.radio_manual themselves in CommonCLI)
   AutoRegions::checkRegionAutoAssign(region_map, _prefs, _fs);
-  // The re-evaluation may have re-derived tx power — apply it to the radio
-  radio_driver.setTxPower(_prefs.tx_power_dbm);
+  // The re-evaluation may have re-derived tx power — apply it to the radio,
+  // unless a temp-radio window is open (its apply/revert timers own tx power)
+  if (!revert_radio_at) {
+    radio_driver.setTxPower(_prefs.tx_power_dbm);
+  }
 #endif
 }
 

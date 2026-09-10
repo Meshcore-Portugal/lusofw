@@ -179,7 +179,9 @@ bool AutoRegions::apply_dynamic_region(RegionMap& region_map, const char* reg_na
 // user sets either one manually (prefs.radio_manual, latched by the CLI
 // set tx / dutycycle / af handlers in CommonCLI). Limits are applied to the
 // conducted/configured value (FCC-style measurement): antenna gain is
-// unknowable, so the EU e.r.p. numbers are used directly; the variant
+// unknowable, so the EU e.r.p. numbers are used directly, but a PA between
+// chip and antenna port is inside the box, so its documented gain
+// (LUSOFW_TX_PA_GAIN) is subtracted from the EU limits; the variant
 // default (LORA_TX_POWER) is never exceeded. Only mutates prefs — callers
 // apply tx power to the radio themselves. Does NOT savePrefs (flash writes
 // block interrupts -> WDT/hard fault boot on nRF52/RAK4631).
@@ -194,14 +196,15 @@ void AutoRegions::applyRadioRegulation(NodePrefs& prefs, float freq) {
     if (!in_europe_flag) {
         tx_power = LORA_TX_POWER;
     } else if (freq >= 869.4f && freq <= 869.65f) {
-        tx_power = 22;
+        tx_power = 27 - LUSOFW_TX_PA_GAIN;
     } else if (freq >= 863.0f && freq <= 870.0f) {
-        tx_power = 14;
+        tx_power = 14 - LUSOFW_TX_PA_GAIN;
     } else if (freq >= 433.05f && freq <= 434.79f) {
-        tx_power = 10;
+        tx_power = 10 - LUSOFW_TX_PA_GAIN;
     } else {
-        tx_power = 10; // in Europe on a frequency with no EU allocation
+        tx_power = 10 - LUSOFW_TX_PA_GAIN; // in Europe on a frequency with no EU allocation
     }
+    if (tx_power < 0) tx_power = 0; // PA gain exceeds the limit: chip minimum
     if (tx_power > LORA_TX_POWER) tx_power = LORA_TX_POWER;
 
     prefs.tx_power_dbm = tx_power;

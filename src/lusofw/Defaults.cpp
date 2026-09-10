@@ -37,9 +37,15 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
 #endif
   }
 
-  if (versionLessThan(version, "2026.9.1")) {
-    // Flag user-customized radio settings so AutoRegions leaves them alone
+  if (versionLessThan(version, "2026.9.1-rc4")) {
+    // Bootstrap the manual-radio latch for prefs that predate the field
+    // (first shipped in v2026.9.1-rc4). For rc4+ the persisted latch is
+    // authoritative: AutoRegions has since written derived af/tx into those
+    // prefs, and re-inferring would latch them as user-set.
     prefs.radio_manual = (prefs.airtime_factor != 1.0f || prefs.tx_power_dbm != LORA_TX_POWER) ? 1 : 0;
+  }
+
+  if (versionLessThan(version, "2026.9.1")) {
 
 #if defined(ENABLE_AUTO_REGIONS)
     // Retire the legacy "#portugal" region. applyDefaults owns the region map
@@ -129,6 +135,15 @@ void LusoDefaults::writeVersion(FILESYSTEM *fs, const char *version) {
   }
 }
 
+// Accumulates a decimal digit into n, saturating just under INT_MAX: an
+// overlong digit run parses to a bounded value that still compares
+// consistently, and a pre-release counter never reaches the final-release
+// sort key.
+static int accumulateDigit(int n, char c) {
+  const int satMax = 0x7FFFFFFF - 1;
+  return (n > (satMax - (c - '0')) / 10) ? satMax : n * 10 + (c - '0');
+}
+
 // Sort key of an optional pre-release suffix: a final release (no suffix)
 // sorts after every pre-release, "-rc2" sorts by its counter, and unknown
 // suffix text counts as 0 (sorts before "-rc1"). So v1.3.0-rc1 < v1.3.0-rc2
@@ -139,7 +154,7 @@ static int prereleaseSortKey(const char* s) {
   while (*s != 0 && (*s < '0' || *s > '9')) s++; // skip the tag text ("rc")
   int n = 0;
   while (*s >= '0' && *s <= '9') {
-    n = n * 10 + (*s - '0');
+    n = accumulateDigit(n, *s);
     s++;
   }
   return n;
@@ -159,12 +174,12 @@ bool LusoDefaults::versionLessThan(const char *version, const char *threshold) {
   for (int i = 0; i < 3; i++) {
     int v = 0;
     while (*version >= '0' && *version <= '9') {
-      v = v * 10 + (*version - '0');
+      v = accumulateDigit(v, *version);
       version++;
     }
     int t = 0;
     while (*threshold >= '0' && *threshold <= '9') {
-      t = t * 10 + (*threshold - '0');
+      t = accumulateDigit(t, *threshold);
       threshold++;
     }
     if (v != t) {

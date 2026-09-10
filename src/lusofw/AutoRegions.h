@@ -2,6 +2,14 @@
 
 #include <helpers/CommonCLI.h>
 
+// Gain (dB) of an external PA between the radio chip and the antenna port,
+// set per variant (0 on direct-antenna boards). applyRadioRegulation emits
+// the EU conducted limit minus this gain at the chip, so the limit holds at
+// the connector on PA-equipped boards (e.g. LilyGo TBeam 1W, XY16P35).
+#ifndef LUSOFW_TX_PA_GAIN
+#define LUSOFW_TX_PA_GAIN 0
+#endif
+
 // Region geometry primitives. Consumed by the region-data headers in regions/.
 struct GeoPoint {
   float lat;
