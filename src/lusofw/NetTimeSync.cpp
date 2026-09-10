@@ -63,7 +63,7 @@ bool NetTimeSync::handleTimekeeperAdvert(const mesh::Identity& id, uint32_t time
     return false;
   }
 
-  int32_t diff = (int32_t)timestamp - (int32_t)clk.getCurrentTime();
+  int32_t diff = (int32_t)(timestamp - clk.getCurrentTime());
   clk.setCurrentTime(timestamp);   // apply, forward or backward
   accepted(timestamp);
   DateTime dt = DateTime(timestamp);
