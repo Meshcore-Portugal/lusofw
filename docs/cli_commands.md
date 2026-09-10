@@ -223,7 +223,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `set tx <dbm>`
 
 **Parameters:**
-- `dbm`: Power level in dBm (1-22)
+- `dbm`: Power level in dBm (-9 to 30)
 
 **Set by build flag:** `LORA_TX_POWER`
 

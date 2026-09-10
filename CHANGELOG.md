@@ -53,7 +53,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 
 ### Notas
 
-- REPETIDOR: Em qualquer mudança de versão do firmware, as preferências `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval` e `advert.interval` são repostas para os valores predefinidos do firmware; os valores definidos pelo utilizador são descartados.
+- REPETIDOR: Em qualquer mudança de versão do firmware, as preferências `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval`, `advert.interval` e `advert_loc_policy` são repostas para os valores predefinidos do firmware; os valores definidos pelo utilizador são descartados.
 
 ## [v2026.7.1] - 01/07/2026
 
