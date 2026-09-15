@@ -401,6 +401,45 @@ TEST(AutoRegionsFlow, 13_EuropeMembershipEdges) {
   }
 }
 
+TEST(AutoRegionsFlow, 14_SharedBoundaryDeterminism) {
+  // Shared boundary points between adjacent polygons must resolve deterministically
+  // by declaration order rather than being dropped as unassigned.
+  // Leiria (idx 9 in PT_DISTRICTS) and Lisboa (idx 10) share:
+  //   A: {39.29193, -9.34058} (coast vertex)
+  //   B: {39.28346, -9.29694}
+  // Midpoint between A and B:
+  const double mid_lat = (39.29193 + 39.28346) / 2.0;
+  const double mid_lon = (-9.34058 + -9.29694) / 2.0;
+
+  Ctx c;
+  StrHelper::strncpy(c.prefs.node_name, "BD.Node", sizeof(c.prefs.node_name));
+  c.prefs.freq = 433.375f;
+
+  // Midpoint of Leiria-Lisboa shared border resolves to Leiria (first in table)
+  ReevaluateAt(c, mid_lat, mid_lon);
+  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-centro", "#pt-leiria"}));
+  EXPECT_EQ(Find(c.rm, "#pt-lisboa"), nullptr);
+  EXPECT_TRUE(AutoRegions::isNodeInEurope());
+  AssertTreeOk(c.rm, "boundary-midpoint");
+
+  // Shared vertex itself resolves to Leiria (first in table)
+  ReevaluateAt(c, 39.29193, -9.34058);
+  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-centro", "#pt-leiria"}));
+  EXPECT_EQ(Find(c.rm, "#pt-lisboa"), nullptr);
+  AssertTreeOk(c.rm, "boundary-vertex");
+
+  // A point slightly nudged inside Lisboa resolves to Lisboa
+  ReevaluateAt(c, 39.27, -9.30);
+  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-lisboa-vale-do-tejo", "#pt-lisboa"}));
+  EXPECT_EQ(Find(c.rm, "#pt-leiria"), nullptr);
+  AssertTreeOk(c.rm, "boundary-nudged-lisboa");
+
+  // Europe polygon northern boundary edge: {75.0, -35.0} -> {75.0, 65.0}
+  // Midpoint is exactly at lat 75.0, lon 15.0 (on the boundary)
+  ReevaluateAt(c, 75.0, 15.0);
+  EXPECT_TRUE(AutoRegions::isNodeInEurope());
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

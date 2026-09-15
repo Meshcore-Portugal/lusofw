@@ -58,17 +58,51 @@ bool AutoRegions::isNodeInEurope() {
     return in_europe_flag;
 }
 
-// Classic Ray-Casting algorithm (Fast and allocation-free)
-static bool isPointInPolygon(float lat, float lon, const GeoPoint* poly, int num_points) {
+enum class PointRelation : uint8_t {
+    Outside,
+    Inside,
+    Boundary,
+};
+
+static inline bool isPointOnSegment(float lat, float lon, const GeoPoint& a, const GeoPoint& b, float eps = 5e-6f) {
+    float min_lat = (a.lat < b.lat ? a.lat : b.lat) - eps;
+    float max_lat = (a.lat > b.lat ? a.lat : b.lat) + eps;
+    float min_lon = (a.lon < b.lon ? a.lon : b.lon) - eps;
+    float max_lon = (a.lon > b.lon ? a.lon : b.lon) + eps;
+    if (lat < min_lat || lat > max_lat || lon < min_lon || lon > max_lon) {
+        return false;
+    }
+    float dlon = b.lon - a.lon;
+    float dlat = b.lat - a.lat;
+    float cross = (lon - a.lon) * dlat - (lat - a.lat) * dlon;
+    float seg_len_sq = dlat * dlat + dlon * dlon;
+    if (seg_len_sq == 0.0f) {
+        float plat = lat - a.lat;
+        float plon = lon - a.lon;
+        return (plat * plat + plon * plon) <= (eps * eps);
+    }
+    return (cross * cross) <= (eps * eps * seg_len_sq);
+}
+
+// Ray-Casting algorithm with boundary classification
+static PointRelation classifyPointInPolygon(float lat, float lon, const GeoPoint* poly, int num_points) {
     bool inside = false;
     for (int i = 0, j = num_points - 1; i < num_points; j = i++) {
+        if (isPointOnSegment(lat, lon, poly[j], poly[i])) {
+            return PointRelation::Boundary;
+        }
         // Check if the horizontal ray intersects the segment between nodes i and j
         if (((poly[i].lon > lon) != (poly[j].lon > lon)) &&
             (lat < (poly[j].lat - poly[i].lat) * (lon - poly[i].lon) / (poly[j].lon - poly[i].lon) + poly[i].lat)) {
             inside = !inside;
         }
     }
-    return inside;
+    return inside ? PointRelation::Inside : PointRelation::Outside;
+}
+
+static bool isPointInPolygon(float lat, float lon, const GeoPoint* poly, int num_points) {
+    PointRelation rel = classifyPointInPolygon(lat, lon, poly, num_points);
+    return (rel == PointRelation::Inside || rel == PointRelation::Boundary);
 }
 
 bool AutoRegions::inject_hierarchy(RegionMap& region_map, const bool* country_matched, bool create_eu) {
@@ -277,14 +311,25 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
 
     if (loc_available) {
         auto evaluate_polygon_array = [&](int country_idx, const RegionPolygon* polys, int count) {
+            const char* interior_match = nullptr;
+            const char* boundary_match = nullptr;
             for (int i = 0; i < count; i++) {
                 for (int j = 0; j < polys[i].ring_count; j++) {
-                    if (isPointInPolygon(eval_lat, eval_lon, polys[i].rings[j].points, polys[i].rings[j].count)) {
-                        country_matched[country_idx] = true;
-                        add_valid_region(polys[i].name);
-                        break; // region matched; no need to test its remaining rings
+                    PointRelation rel = classifyPointInPolygon(eval_lat, eval_lon, polys[i].rings[j].points, polys[i].rings[j].count);
+                    if (rel == PointRelation::Inside) {
+                        interior_match = polys[i].name;
+                        break;
+                    }
+                    if (rel == PointRelation::Boundary && !boundary_match) {
+                        boundary_match = polys[i].name;
                     }
                 }
+                if (interior_match) break;
+            }
+            const char* selected = interior_match ? interior_match : boundary_match;
+            if (selected) {
+                country_matched[country_idx] = true;
+                add_valid_region(selected);
             }
         };
 
