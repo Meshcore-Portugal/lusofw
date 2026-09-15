@@ -1,12 +1,19 @@
 {
 	"name": "MeshCore | Luso Firmware",
-	"image": "mcr.microsoft.com/devcontainers/python:3-bookworm",
+	"image": "mcr.microsoft.com/devcontainers/base:bookworm",
 	"features": {
-		"ghcr.io/devcontainers/features/node:2.1.0": {},
+		"ghcr.io/devcontainers/features/node:2": {
+			"version": "lts"
+		},
+		"ghcr.io/devcontainers/features/python:1": {
+			"version": "3.14"
+		},
 		"ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
 			"packages": [
-				"sudo",
-				"ripgrep"
+				"imagemagick",
+				"optipng",
+				"ripgrep",
+				"sudo"
 			]
 		}
 	},

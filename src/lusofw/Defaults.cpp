@@ -46,6 +46,10 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
   }
 
   if (versionLessThan(version, "2026.9.1")) {
+    if (prefs.interference_threshold == 0) {
+      // If interference_threshold was not explicitly set, default it to 255
+      prefs.interference_threshold = 255;
+    }
 
 #if defined(ENABLE_AUTO_REGIONS)
     // Retire the legacy "#portugal" region. applyDefaults owns the region map

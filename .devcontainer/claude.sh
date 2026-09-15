@@ -10,21 +10,23 @@ mkdir -p ${HOME}/.claude
 cat > ${HOME}/.claude/settings.json <<'EOF'
 {
   "env": {
-    "ANTHROPIC_AUTH_TOKEN": "your_zai_api_key",
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5.2[1m]",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.3-flash[1m]",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.3[1m]",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "cheap-coding[1m]",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "premium-coding[1m]",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "normal-coding[1m]",
     "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "API_TIMEOUT_MS": "3000000",
-    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000"
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000",
+    "CLAUDE_MODEL": "opusplan",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_TELEMETRY": "1"
   },
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
   "theme": "dark",
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "effortLevel": "high",
+  "model": "opusplan"
 }
 EOF
 
