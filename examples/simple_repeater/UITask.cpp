@@ -6,6 +6,10 @@
 #include <lusofw/BatteryCurve.h>
 #include <lusofw/BootScreen.h>
 
+#ifdef HAS_RGB_LOGO
+#include "../companion_radio/ui-new/logo_rgb.h"
+#endif
+
 #ifndef USER_BTN_PRESSED
 #define USER_BTN_PRESSED LOW
 #endif
@@ -43,11 +47,31 @@ void UITask::begin(NodePrefs* node_prefs, const char* build_date, const char* fi
 
 void UITask::renderCurrScreen() {
   char tmp[80];
+#ifdef HAS_RGB_LOGO
+  if (millis() < _started_at + BOOT_SCREEN_MILLIS) {
+    int lx = (PANEL_NATIVE_W - MESHCORE_LOGO_RGB_W) / 2;
+    _display->drawRGBBitmap(lx, 10, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
+    _display->setColor(UIColor::primary_txt);
+    _display->setTextSize(1);
+    _display->drawTextCentered(_display->width() / 2, 37, BootScreen::WEBSITE);
+    _display->setColor(UIColor::secondary_txt);
+    _display->drawTextCentered(_display->width() / 2, 47, _version_info);
+  } else if (_powering_off_at > 0) {
+    int lx = (PANEL_NATIVE_W - MESHCORE_LOGO_RGB_W) / 2;
+    _display->drawRGBBitmap(lx, 10, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
+    _display->setColor(UIColor::primary_txt);
+    _display->setTextSize(1);
+    _display->drawTextCentered(_display->width() / 2, 37, BootScreen::WEBSITE);
+    _display->setColor(UIColor::secondary_txt);
+    _display->drawTextCentered(_display->width() / 2, 47, "Turning OFF");
+  } else {
+#else
   if (millis() < _started_at + BOOT_SCREEN_MILLIS) { // boot screen
     BootScreen::drawBootScreen(_display, _version_info, UIColor::secondary_txt);
   } else if (_powering_off_at > 0) {
     BootScreen::drawBootScreen(_display, "Turning OFF", UIColor::secondary_txt);
   } else {
+#endif
     _display->setCursor(0, 0);
     _display->setTextSize(1);
     _display->setColor(UIColor::primary_txt);

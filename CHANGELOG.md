@@ -8,6 +8,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 ### Funcionalidades
 
 - REPETIDOR: Atribuição automática de regiões geográficas a partir das coordenadas guardadas nas preferências do nó.
+- REPETIDOR: O ecrã de arranque e de encerramento do Heltec T114 passa a apresentar o logótipo colorido RGB565 de Portugal, igualando o comportamento do companion radio.
 - RÁDIO: Novo modo automático para o limiar de interferência (`set int.thresh 255`, `get int.thresh` responde `auto`), guardado pela flag de build `LUSOFW_RADIO_INT_THR_AUTO`.
 - CLIENTE: O limiar de interferência RSSI (listen-before-talk) passa a ser aplicado no companion radio; até agora estava fixo em 0 (desligado). A preferência `int_thr` é agora persistida nos prefs e, com a flag `LUSOFW_RADIO_INT_THR_AUTO`, instalações novas e atualizações sem valor guardado ficam em modo automático (`255`, limiar derivado do SF em vigor); um `0` explicitamente guardado mantém a função desativada.
 - REPETIDOR: Adicionada proteção de adverts (`ENABLE_ADVERT_PROTECT`): o advert de cada repetidor remoto é repetido no máximo uma vez a cada 12 horas (por chave pública); os adverts duplicados continuam a ser processados localmente, mas já não são retransmitidos. Motivado por firmware muito antigo que entra frequentemente em boot loop e gera advert storms durante horas.
