@@ -2,6 +2,7 @@
 #include "CommonCLI.h"
 #include "TxtDataHelpers.h"
 #include "AdvertDataHelpers.h"
+#include <lusofw/RepeaterRole.h>
 #include "TxtDataHelpers.h"
 #include <RTClib.h>
 
@@ -635,6 +636,17 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
     savePrefs();
     _callbacks->onNodeConfigChanged();
     strcpy(reply, "OK");
+  } else if (memcmp(config, "role ", 5) == 0) {
+    const char* value = &config[5];
+    if (strcmp(_callbacks->getRole(), "repeater") != 0) {
+      strcpy(reply, "Error: unsupported");
+    } else if (value[0] >= '0' && value[0] <= '3' && value[1] == 0) {
+      RepeaterRole::apply(*_prefs, value[0] - '0');
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error, must be 0, 1, 2, or 3");
+    }
   } else if (memcmp(config, "rxdelay ", 8) == 0) {
     float db = atof(&config[8]);
     if (db >= 0 && db <= 20.0f) {
@@ -941,8 +953,12 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
   } else if (memcmp(config, "public.key", 10) == 0) {
     strcpy(reply, "> ");
     mesh::Utils::toHex(&reply[2], _callbacks->getSelfId().pub_key, PUB_KEY_SIZE);
-  } else if (memcmp(config, "role", 4) == 0) {
-    sprintf(reply, "> %s", _callbacks->getRole());
+  } else if (memcmp(config, "role", 4) == 0 && config[4] == 0) {
+    if (strcmp(_callbacks->getRole(), "repeater") == 0) {
+      sprintf(reply, "> %d", (uint32_t)_prefs->role);
+    } else {
+      sprintf(reply, "> %s", _callbacks->getRole());
+    }
   } else if (memcmp(config, "bridge.type", 11) == 0) {
     sprintf(reply, "> %s",
 #ifdef WITH_RS232_BRIDGE

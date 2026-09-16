@@ -440,8 +440,20 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ---
 
-#### View this node's configured role
-**Usage:** `get role`
+#### View or set repeater role
+**Usage:**
+- `get role`
+- `set role <0-3>`
+
+**Parameters:**
+- `0`: Tier 0, backbone or infrastructure. `direct.txdelay` 2.0, `rxdelay` 3.0, `txdelay` 2.0.
+- `1`: Tier 1, regional or elevated. `direct.txdelay` 1.0, `rxdelay` 3.0, `txdelay` 1.5.
+- `2`: Tier 2, local. `direct.txdelay` 0.4, `rxdelay` 3.0, `txdelay` 0.8.
+- `3`: Tier 3, personal or indoor. `direct.txdelay` 0.1, `rxdelay` 3.0, `txdelay` 0.3.
+
+**Default:** `3`
+
+**Note:** Setting a role overwrites all three delay preferences and saves them.
 
 ---
 
@@ -525,7 +537,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `value`: Transmit delay factor (0-2)
 
-**Default:** `0.5`
+**Default:** `0.3` when role is Tier 3
 
 **Note:** When multiple nearby repeaters all hear the same flood packet, each waits a random amount of time before retransmitting to avoid simultaneous collisions. This factor scales the size of that random window. Higher values reduce collision risk at the cost of added latency. `0` disables the window entirely.
 
@@ -539,7 +551,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `value`: Direct transmit delay factor (0-2)
 
-**Default:** `0.2`
+**Default:** `0.1` when role is Tier 3
 
 **Note:** Same collision-avoidance random window as `txdelay`, but applied to direct (non-flood, routed) traffic. The default is lower because direct packets are addressed to a specific next hop, so far fewer nodes compete to retransmit them.
 
@@ -553,7 +565,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `value`: Receive delay base (0-20)
 
-**Default:** `0.0`
+**Default:** `3.0` when role is Tier 3
 
 **Note:** When enabled, repeaters that received a flood packet with a weak signal are held in a delay queue before processing, while those that received it with a strong signal process it immediately. This gives strong-signal paths forwarding priority. By the time weak-signal nodes process their copy, the packet may have already propagated and will be suppressed as a duplicate, reducing redundant retransmissions.
 

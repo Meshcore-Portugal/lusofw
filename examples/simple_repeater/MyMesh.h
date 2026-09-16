@@ -35,6 +35,7 @@
 #include <helpers/TxtDataHelpers.h>
 #include <helpers/RegionMap.h>
 #include <lusofw/Defaults.h>
+#include <lusofw/RepeaterRole.h>
 #include <helpers/RoutingPolicy.h>
 #include "RateLimiter.h"
 

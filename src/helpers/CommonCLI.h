@@ -71,6 +71,7 @@ public:
   uint8_t cad_enabled = 0;      // hardware Channel Activity Detection before TX (boolean)
   uint8_t radio_manual = 0;     // 1 once user manually sets tx power or duty cycle (AutoRegions then leaves airtime alone)
   uint8_t extra_sf[4];
+  uint8_t role = 0xFF;
 
 private:
   class RadioPrefs : public ConfigSerializer {
@@ -176,6 +177,7 @@ protected:
     def("owner", owner_info, sizeof(owner_info));
     def("adv_int", advert_interval);
     def("f_adv_int", flood_advert_interval);
+    def("role", role);
     def("lat", node_lat);
     def("lon", node_lon);
     def("radio", radio);

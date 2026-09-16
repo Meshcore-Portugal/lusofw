@@ -1023,6 +1023,10 @@ void MyMesh::begin(FILESYSTEM *fs) {
   // load persisted prefs
   _cli.loadPrefs(_fs);
 
+  if (_prefs.role > 3) {
+    RepeaterRole::apply(_prefs, 3);
+  }
+
   char oldVersion[32];
   LusoDefaults::readVersion(_fs, oldVersion, sizeof(oldVersion));
   if (strcmp(oldVersion, LUSOFW_FIRMWARE_VERSION) != 0) {
