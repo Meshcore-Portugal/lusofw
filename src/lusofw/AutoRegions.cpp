@@ -54,6 +54,12 @@ static const int NUM_ENABLED_COUNTRIES = sizeof(ENABLED_COUNTRIES) / sizeof(ENAB
 
 bool AutoRegions::in_europe_flag = false;
 
+static const char* portugalRfRegion(float freq) {
+    if (freq >= 433.05f && freq <= 434.79f) return "#pt-433";
+    if (freq >= 863.0f && freq <= 870.0f) return "#pt-868";
+    return nullptr;
+}
+
 bool AutoRegions::isNodeInEurope() {
     return in_europe_flag;
 }
@@ -248,6 +254,7 @@ void AutoRegions::applyRadioRegulation(NodePrefs& prefs, float freq) {
 void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs, FILESYSTEM* fs) {
     static float last_checked_lat = -999.0f;
     static float last_checked_lon = -999.0f;
+    static float last_checked_freq = -1.0f;
     static char last_checked_name[sizeof(prefs.node_name)] = {0};
     static uint8_t last_loc_policy = 0xFF;
 
@@ -273,8 +280,9 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
     float diff_lat = eval_lat > last_checked_lat ? eval_lat - last_checked_lat : last_checked_lat - eval_lat;
     float diff_lon = eval_lon > last_checked_lon ? eval_lon - last_checked_lon : last_checked_lon - eval_lon;
     bool coords_changed = (diff_lat > 0.01f || diff_lon > 0.01f);
+    bool freq_changed = (prefs.freq < last_checked_freq - 0.001f || prefs.freq > last_checked_freq + 0.001f);
 
-    if (!force_initial_check && !name_changed && !policy_changed && !coords_changed) {
+    if (!force_initial_check && !name_changed && !policy_changed && !coords_changed && !freq_changed) {
         return; // No coordinate, policy or name change -> do nothing
     }
 
@@ -286,16 +294,16 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
     bool is_in_europe = false;
 
     // Overflow note: if more than 16 regions match, extras are silently dropped
-    // here — and since polygon names are added before the country names and
-    // "#europe" appended by the shared block below, overflow would drop exactly
+    // here — and since polygon names are added before the country names, RF scopes,
+    // and "#europe" appended by the shared block below, overflow would drop exactly
     // those structural entries while country_matched[]/is_in_europe stay true.
     // The removal sweep would then delete them and inject_hierarchy recreate
     // them on every evaluation (repeated /regions2 flash rewrites). Reaching it
     // is possible but requires very specific conditions: a node inside more
-    // than ~14 matching polygons, which needs multiple countries' geometries
+    // than ~13 matching polygons, which needs multiple countries' geometries
     // to overlap (or malformed data) — districts and macro regions each
     // partition their country, so well-formed data matches ~1 macro + ~1
-    // district per country (~4 entries with the country and "#europe").
+    // district per country (~5 entries with country, RF scope, and "#europe").
     auto add_valid_region = [&](const char* name) {
         if (num_valid < 16) {
             valid_regions[num_valid++] = name;
@@ -392,6 +400,15 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
     if (is_in_europe && !from_defaults) {
         add_valid_region("#europe");
     }
+#ifdef ENABLE_COUNTRY_PT
+    for (int c = 0; c < NUM_ENABLED_COUNTRIES; c++) {
+        if (country_matched[c] && strcmp(ENABLED_COUNTRIES[c].name, "#pt") == 0) {
+            const char* rf_region = portugalRfRegion(prefs.freq);
+            if (rf_region) add_valid_region(rf_region);
+            break;
+        }
+    }
+#endif
 
     // Map-first sweep: walk the map's own entries once and remove any
     // auto-assigned region this evaluation did not mark valid — O(map x valid)
@@ -424,6 +441,7 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
     // Update RAM state so we don't re-evaluate immediately
     last_checked_lat = prefs.node_lat;
     last_checked_lon = prefs.node_lon;
+    last_checked_freq = prefs.freq;
     StrHelper::strncpy(last_checked_name, prefs.node_name, sizeof(last_checked_name));
     last_loc_policy = prefs.advert_loc_policy;
 

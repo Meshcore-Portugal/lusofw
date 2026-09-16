@@ -159,8 +159,8 @@ TEST(AutoRegionsFlow, 02_NamePrefixFallback) {
   Ctx c;
   StrHelper::strncpy(c.prefs.node_name, "LI.Repeater", sizeof(c.prefs.node_name));
   AutoRegions::checkRegionAutoAssign(c.rm, c.prefs, &c.fs);
-  EXPECT_EQ(c.rm.getCount(), 4);
-  EXPECT_TRUE(HasAll(c.rm, {"#pt-lisboa", "#pt-lisboa-vale-do-tejo", "#pt", "#europe"}));
+  EXPECT_EQ(c.rm.getCount(), 5);
+  EXPECT_TRUE(HasAll(c.rm, {"#pt-868", "#pt-lisboa", "#pt-lisboa-vale-do-tejo", "#pt", "#europe"}));
   EXPECT_EQ(c.prefs.tx_power_dbm, ExpectedEuTx(27));  // EU 869.618 sub-band (27 dBm limit)
   // Coordinates present but policy NONE: prefix still wins, coords ignored
   Ctx c2;
@@ -175,8 +175,8 @@ TEST(AutoRegionsFlow, 03_CoordinatesAssignHierarchyAndPersist) {
   Ctx c;
   c.prefs.freq = 433.375f;  // audit bench parameters
   ReevaluateAt(c, 38.7223, -9.1393);  // Lisbon
-  EXPECT_EQ(c.rm.getCount(), 4);
-  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-lisboa", "#pt-lisboa-vale-do-tejo"}));
+  EXPECT_EQ(c.rm.getCount(), 5);
+  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-433", "#pt-lisboa", "#pt-lisboa-vale-do-tejo"}));
   EXPECT_TRUE(AutoRegions::isNodeInEurope());
   EXPECT_EQ(c.prefs.tx_power_dbm, ExpectedEuTx(10));  // EU 433 MHz conducted limit
   EXPECT_FLOAT_EQ(c.prefs.airtime_factor, 9.0f);
@@ -186,6 +186,7 @@ TEST(AutoRegionsFlow, 03_CoordinatesAssignHierarchyAndPersist) {
   ASSERT_NE(pt, nullptr);
   EXPECT_EQ(eu->parent, 0);
   EXPECT_TRUE(eu->flags & REGION_AUTO_ASSIGN);
+  EXPECT_EQ(Find(c.rm, "#pt-433")->parent, pt->id);
   EXPECT_EQ(Find(c.rm, "#pt-lisboa")->parent, pt->id);
   EXPECT_EQ(Find(c.rm, "#pt-lisboa-vale-do-tejo")->parent, pt->id);
   EXPECT_EQ(pt->parent, eu->id);
@@ -206,23 +207,44 @@ TEST(AutoRegionsFlow, 03_CoordinatesAssignHierarchyAndPersist) {
   ASSERT_NE(c.fs.bytes("/regions2"), nullptr);
   EXPECT_EQ(*before, *c.fs.bytes("/regions2"));  // byte-identical map
 
+  // Switch bands: replace the Portuguese RF scope without changing location.
+  c.prefs.freq = 869.618f;
+  AutoRegions::checkRegionAutoAssign(c.rm, c.prefs, &c.fs);
+  EXPECT_TRUE(HasAll(c.rm, {"#pt-868", "#pt-lisboa", "#pt-lisboa-vale-do-tejo"}));
+  EXPECT_EQ(Find(c.rm, "#pt-433"), nullptr);
+  EXPECT_EQ(Find(c.rm, "#pt-868")->parent, pt->id);
+  EXPECT_EQ(c.fs.writes, 2u);
+
+  // An unsupported band keeps Portugal scopes but has no RF subregion.
+  c.prefs.freq = 915.0f;
+  AutoRegions::checkRegionAutoAssign(c.rm, c.prefs, &c.fs);
+  EXPECT_TRUE(HasAll(c.rm, {"#pt", "#pt-lisboa", "#pt-lisboa-vale-do-tejo"}));
+  EXPECT_EQ(Find(c.rm, "#pt-433"), nullptr);
+  EXPECT_EQ(Find(c.rm, "#pt-868"), nullptr);
+  EXPECT_EQ(c.fs.writes, 3u);
+
+  c.prefs.freq = 869.618f;
+  AutoRegions::checkRegionAutoAssign(c.rm, c.prefs, &c.fs);
+  EXPECT_NE(Find(c.rm, "#pt-868"), nullptr);
+  EXPECT_EQ(c.fs.writes, 4u);
+
   // Move to Porto: district/macro swap, country ids stable, one re-save
   const uint16_t pt_id = pt->id, eu_id = eu->id;
   ReevaluateAt(c, 41.1496, -8.6109);
-  EXPECT_EQ(c.rm.getCount(), 4);
-  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-porto", "#pt-norte"}));
+  EXPECT_EQ(c.rm.getCount(), 5);
+  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-868", "#pt-porto", "#pt-norte"}));
   EXPECT_EQ(Find(c.rm, "#pt")->id, pt_id);
   EXPECT_EQ(Find(c.rm, "#europe")->id, eu_id);
-  EXPECT_EQ(c.fs.writes, 2u);
+  EXPECT_EQ(c.fs.writes, 5u);
   AssertTreeOk(c.rm, "porto");
 
   // radio_manual freezes derived radio state, regions still reassign
   c.prefs.radio_manual = 1;
   AutoRegions::applyRadioRegulation(c.prefs, 869.5f);
   const int8_t frozen_tx = c.prefs.tx_power_dbm;  // derived before the latch
-  EXPECT_EQ(frozen_tx, ExpectedEuTx(10));         // 433 value stays frozen
+  EXPECT_EQ(frozen_tx, ExpectedEuTx(27));         // 868 value stays frozen
   ReevaluateAt(c, 38.7223, -9.1393);
-  EXPECT_TRUE(HasAll(c.rm, {"#pt-lisboa", "#pt-lisboa-vale-do-tejo"}));
+  EXPECT_TRUE(HasAll(c.rm, {"#pt-868", "#pt-lisboa", "#pt-lisboa-vale-do-tejo"}));
   EXPECT_EQ(c.prefs.tx_power_dbm, frozen_tx);
 }
 
@@ -230,7 +252,7 @@ TEST(AutoRegionsFlow, 04_RenameSweepsAutoRegions) {
   Ctx c;
   StrHelper::strncpy(c.prefs.node_name, "PO.Alpha", sizeof(c.prefs.node_name));
   AutoRegions::checkRegionAutoAssign(c.rm, c.prefs, &c.fs);
-  EXPECT_TRUE(HasAll(c.rm, {"#pt-porto", "#pt-norte", "#pt", "#europe"}));
+  EXPECT_TRUE(HasAll(c.rm, {"#pt-868", "#pt-porto", "#pt-norte", "#pt", "#europe"}));
   StrHelper::strncpy(c.prefs.node_name, "ZZ.Nowhere", sizeof(c.prefs.node_name));
   AutoRegions::checkRegionAutoAssign(c.rm, c.prefs, &c.fs);
   EXPECT_EQ(c.rm.getCount(), 0);
@@ -417,20 +439,20 @@ TEST(AutoRegionsFlow, 14_SharedBoundaryDeterminism) {
 
   // Midpoint of Leiria-Lisboa shared border resolves to Leiria (first in table)
   ReevaluateAt(c, mid_lat, mid_lon);
-  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-centro", "#pt-leiria"}));
+  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-433", "#pt-centro", "#pt-leiria"}));
   EXPECT_EQ(Find(c.rm, "#pt-lisboa"), nullptr);
   EXPECT_TRUE(AutoRegions::isNodeInEurope());
   AssertTreeOk(c.rm, "boundary-midpoint");
 
   // Shared vertex itself resolves to Leiria (first in table)
   ReevaluateAt(c, 39.29193, -9.34058);
-  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-centro", "#pt-leiria"}));
+  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-433", "#pt-centro", "#pt-leiria"}));
   EXPECT_EQ(Find(c.rm, "#pt-lisboa"), nullptr);
   AssertTreeOk(c.rm, "boundary-vertex");
 
   // A point slightly nudged inside Lisboa resolves to Lisboa
   ReevaluateAt(c, 39.27, -9.30);
-  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-lisboa-vale-do-tejo", "#pt-lisboa"}));
+  EXPECT_TRUE(HasAll(c.rm, {"#europe", "#pt", "#pt-433", "#pt-lisboa-vale-do-tejo", "#pt-lisboa"}));
   EXPECT_EQ(Find(c.rm, "#pt-leiria"), nullptr);
   AssertTreeOk(c.rm, "boundary-nudged-lisboa");
 
