@@ -29,8 +29,7 @@
 	"mounts": [],
 	"onCreateCommand": {
 		"claude": "bash -c 'cd .devcontainer && bash claude.sh'",
-		"platformio": "pipx install platformio esptool",
-		"timezone": "sudo ln -snf /usr/share/zoneinfo/Europe/Lisbon /etc/localtime && echo 'Europe/Lisbon' | sudo tee /etc/timezone",
+		"platformio": "pipx install platformio esptool"
 	},
 	"customizations": {
 		"vscode": {

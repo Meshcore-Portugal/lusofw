@@ -21,7 +21,15 @@ cat > ${HOME}/.claude/settings.json <<'EOF'
     "DISABLE_TELEMETRY": "1"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
+    "allow": [
+			"Bash(git grep *)",
+			"Bash(pio run)",
+			"Bash(pio run *)",
+			"Bash(pio device monitor *)",
+			"Bash(pio project config *)",
+			"Bash(pio pkg list *)"
+    ]
   },
   "theme": "dark",
   "skipDangerousModePermissionPrompt": true,
