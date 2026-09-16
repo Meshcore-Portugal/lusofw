@@ -2,6 +2,9 @@
 
 #include <Arduino.h> // needed for PlatformIO
 #include <Mesh.h>
+#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#include "lusofw/InterferenceAuto.h"
+#endif
 
 #define CMD_APP_START                 1
 #define CMD_SEND_TXT_MSG              2
@@ -259,7 +262,12 @@ float MyMesh::getAirtimeBudgetFactor() const {
 }
 
 int MyMesh::getInterferenceThreshold() const {
-  return 0; // disabled for now, until currentRSSI() problem is resolved
+#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+  return InterferenceAuto::resolve(_prefs.interference_threshold,
+                                   radio_driver.getSpreadingFactor());
+#else
+  return _prefs.interference_threshold;
+#endif
 }
 bool MyMesh::getCADEnabled() const {
   return false; // hardware CAD before TX (disabled by default, until configurable)

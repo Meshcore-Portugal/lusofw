@@ -1,6 +1,9 @@
 #pragma once
 #include <cstdint> // For uint8_t, uint32_t
 #include <helpers/ConfigSerializer.h>
+#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#include "lusofw/InterferenceAuto.h"
+#endif
 
 #define TELEM_MODE_DENY            0
 #define TELEM_MODE_ALLOW_FLAGS     1     // use contact.flags
@@ -17,6 +20,11 @@ public:
   float freq = 0;
   uint8_t sf = 0;
   uint8_t cr = 0;
+#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+  uint8_t interference_threshold = InterferenceAuto::AUTO;
+#else
+  uint8_t interference_threshold = 0;
+#endif
   uint8_t multi_acks = 0;
   uint8_t manual_add_contacts = 0;
   float bw = 0;
@@ -51,7 +59,7 @@ private:
       def("sf", _parent->sf);
       def("cr", _parent->cr);
       //def("cad", _parent->cad_enabled);
-      //def("int_thr", _parent->interference_threshold);
+      def("int_thr", _parent->interference_threshold);
       def("rxgain", _parent->rx_boosted_gain);
     #if 0
       // NOTE: these cannot be set (yet) so don't load/save until we can.

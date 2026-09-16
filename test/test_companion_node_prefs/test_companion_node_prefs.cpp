@@ -77,6 +77,34 @@ TEST(CompanionNodePrefs, RxGainSettingsRoundTripIndependently) {
 }
 #endif
 
+TEST(CompanionNodePrefs, InterferenceThresholdRoundTrip) {
+  NodePrefs saved;
+  saved.interference_threshold = 14;
+
+  CaptureStream output;
+  ASSERT_TRUE(saved.saveSerial(output));
+  EXPECT_NE(std::string::npos, output.text().find("int_thr:14"));
+
+  ReplayStream input("{radio:{int_thr:16}}");
+  NodePrefs loaded;
+  loaded.interference_threshold = 0;
+
+  ASSERT_TRUE(loaded.loadSerial(input));
+  EXPECT_EQ(16, loaded.interference_threshold);
+}
+
+TEST(CompanionNodePrefs, MissingInterferenceThresholdKeepsDefault) {
+  ReplayStream input("{radio:{sf:8}}");
+  NodePrefs loaded;
+
+  ASSERT_TRUE(loaded.loadSerial(input));
+#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+  EXPECT_EQ(255, loaded.interference_threshold);
+#else
+  EXPECT_EQ(0, loaded.interference_threshold);
+#endif
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
