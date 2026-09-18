@@ -137,48 +137,33 @@ disable_debug_flags() {
 
 # build firmware for the provided pio env in $1
 build_firmware() {
+  local PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS}"
+
   # get env platform for post build actions
   ENV_PLATFORM=($(get_platform_for_env $1))
-  # get git commit sha
-  COMMIT_HASH=$(git rev-parse --short HEAD)
 
-  # full git tag for firmware build, e.g: main-abcdef-dirty
-  FIRMWARE_GIT_TAG=${COMMIT_HASH}$(if [ -n "$(git status --porcelain)" ]; then echo "-dirty"; fi)
+  # get git commit sha (with * suffix if modified)
+  COMMIT_HASH=$(git describe --always --dirty=* --exclude='*')
 
-  # set firmware build date
-  FIRMWARE_BUILD_DATE=$(date '+%d-%b-%Y')
-
-  # get FIRMWARE_VERSION, which should be provided by the environment or extracted from code
+  # get FIRMWARE_VERSION, provided by environment or read from platformio.ini
   if [ -z "$FIRMWARE_VERSION" ]; then
-    export FIRMWARE_VERSION=$(grep '^[[:space:]]*#define[[:space:]]\+FIRMWARE_VERSION[[:space:]]\+"' examples/simple_repeater/MyMesh.h | \
-      sed -E 's/^[[:space:]]*#define[[:space:]]+FIRMWARE_VERSION[[:space:]]+"v([0-9.]+)".*/v\1/')
+    FIRMWARE_VERSION=$(sed -nE 's/^[[:space:]]*-D[[:space:]]*FIRMWARE_VERSION=[^0-9a-zA-Z._-]*([0-9a-zA-Z._-]+).*/\1/p' platformio.ini)
     if [ -z "$FIRMWARE_VERSION" ]; then
-      echo "FIRMWARE_VERSION could not be determined from environment or code"
-      exit 1
-    fi
-  fi
-
-  # get LUSOFW_FIRMWARE_VERSION
-  if [ -z "$LUSOFW_FIRMWARE_VERSION" ]; then
-    export LUSOFW_FIRMWARE_VERSION=$(grep '^[[:space:]]*#define[[:space:]]\+LUSOFW_FIRMWARE_VERSION[[:space:]]\+"' examples/simple_repeater/MyMesh.h | \
-      sed -E 's/^[[:space:]]*#define[[:space:]]+LUSOFW_FIRMWARE_VERSION[[:space:]]+"([^"]+)".*/\1/')
-    if [ -z "$LUSOFW_FIRMWARE_VERSION" ]; then
-      echo "LUSOFW_FIRMWARE_VERSION could not be determined from environment or code"
+      echo "FIRMWARE_VERSION could not be determined from environment or platformio.ini"
       exit 1
     fi
   fi
 
   # set firmware version string
-  # e.g: v1.0.0-abcdef
-  FIRMWARE_VERSION_STRING="${LUSOFW_FIRMWARE_VERSION}-lusofw"
-  FIRMWARE_BUILD_DATE_STRING="${FIRMWARE_GIT_TAG}"
+  # e.g: 2026.9.1-rc7-lusofw-34b1057e*
+  FIRMWARE_VERSION_STRING="${FIRMWARE_VERSION}-lusofw-${COMMIT_HASH}"
 
   # craft filename
-  # e.g: RAK_4631_Repeater-v1.0.0-SHA
-  FIRMWARE_FILENAME="$1-${LUSOFW_FIRMWARE_VERSION}-lusofw-${FIRMWARE_GIT_TAG}"
+  # e.g: RAK_4631_Repeater-2026.9.1-rc7-lusofw-34b1057e*
+  FIRMWARE_FILENAME="$1-${FIRMWARE_VERSION_STRING}"
 
-  # add firmware version info to end of existing platformio build flags in environment vars
-  export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS} -DFIRMWARE_BUILD_DATE='\"${FIRMWARE_BUILD_DATE_STRING}\"' -DFIRMWARE_VERSION='\"${FIRMWARE_VERSION_STRING}\"'"
+  # forward firmware version to platformio build flags
+  export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS} -DFIRMWARE_VERSION='\"${FIRMWARE_VERSION}\"'"
 
   # disable debug flags if requested
   disable_debug_flags

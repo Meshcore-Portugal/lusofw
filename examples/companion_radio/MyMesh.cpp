@@ -1038,8 +1038,7 @@ void MyMesh::handleCmdFrame(size_t len) {
     out_frame[i++] = MAX_GROUP_CHANNELS; // v3+
     memcpy(&out_frame[i], &_prefs.ble_pin, 4);
     i += 4;
-    memset(&out_frame[i], 0, 12);
-    strcpy((char *)&out_frame[i], FIRMWARE_BUILD_DATE);
+    StrHelper::strzcpy((char *)&out_frame[i], FIRMWARE_BUILD_DATE, 12);
     i += 12;
     StrHelper::strzcpy((char *)&out_frame[i], board.getManufacturerName(), 40);
     i += 40;

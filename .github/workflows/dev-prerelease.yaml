@@ -31,20 +31,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          VERSION=$(grep '^[[:space:]]*#define[[:space:]]\+LUSOFW_FIRMWARE_VERSION[[:space:]]\+"' examples/simple_repeater/MyMesh.h | \
-            sed -E 's/^[[:space:]]*#define[[:space:]]+LUSOFW_FIRMWARE_VERSION[[:space:]]+"([^"]+)".*/\1/')
+          VERSION=$(sed -nE 's/^[[:space:]]*-D[[:space:]]*FIRMWARE_VERSION=[^0-9a-zA-Z._-]*([0-9a-zA-Z._-]+).*/\1/p' platformio.ini)
+          [[ -n "${VERSION}" ]] || { echo "Failed to extract FIRMWARE_VERSION from platformio.ini" >&2; exit 1; }
+          VERSION="v${VERSION#v}"
 
-          if [[ -z "${VERSION}" ]]; then
-            echo "Failed to extract LUSOFW_FIRMWARE_VERSION from examples/simple_repeater/MyMesh.h"
-            exit 1
-          fi
-
-          # Ensure the version (and therefore the tag) always carries a "v" prefix.
-          if [[ "${VERSION}" != v* ]]; then
-            VERSION="v${VERSION}"
-          fi
-
-          echo "Current LUSOFW_FIRMWARE_VERSION: ${VERSION}"
+          echo "Current FIRMWARE_VERSION: ${VERSION}"
 
           # Only cut a dev prerelease when the version is itself a release
           # candidate (e.g. v1.2.3-rc1, v1.2.3-rc2). Stable or plain dev
@@ -172,19 +163,13 @@ jobs:
         shell: bash
         run: pio pkg update -d . -e ${{ matrix.firmware }}
 
-      - name: Extract versions
+      - name: Extract version
         run: |
-          FIRMWARE_VERSION=$(grep '^[[:space:]]*#define[[:space:]]\+FIRMWARE_VERSION[[:space:]]\+"' examples/simple_repeater/MyMesh.h | \
-            sed -E 's/^[[:space:]]*#define[[:space:]]+FIRMWARE_VERSION[[:space:]]+"v([0-9.]+)".*/v\1/')
-          LUSOFW_FIRMWARE_VERSION=$(grep '^[[:space:]]*#define[[:space:]]\+LUSOFW_FIRMWARE_VERSION[[:space:]]\+"' examples/simple_repeater/MyMesh.h | \
-            sed -E 's/^[[:space:]]*#define[[:space:]]+LUSOFW_FIRMWARE_VERSION[[:space:]]+"([^"]+)".*/\1/')
-          echo "FIRMWARE_VERSION=${FIRMWARE_VERSION}" >> "$GITHUB_ENV"
-          echo "LUSOFW_FIRMWARE_VERSION=${LUSOFW_FIRMWARE_VERSION}" >> "$GITHUB_ENV"
+          sed -nE 's/^[[:space:]]*-D[[:space:]]*(FIRMWARE_VERSION)=[^0-9a-zA-Z._-]*([0-9a-zA-Z._-]+).*/\1=\2/p' platformio.ini >> "$GITHUB_ENV"
 
       - name: Build Firmware
         env:
           FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
-          LUSOFW_FIRMWARE_VERSION: ${{ env.LUSOFW_FIRMWARE_VERSION }}
         run: /usr/bin/env bash build.sh build-firmware ${{ matrix.firmware }}
 
       - name: Upload Firmware Artifact
@@ -208,22 +193,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          LUSOFW_FIRMWARE_VERSION=$(grep '^[[:space:]]*#define[[:space:]]\+LUSOFW_FIRMWARE_VERSION[[:space:]]\+"' examples/simple_repeater/MyMesh.h | \
-            sed -E 's/^[[:space:]]*#define[[:space:]]+LUSOFW_FIRMWARE_VERSION[[:space:]]+"([^"]+)".*/\1/')
-          SHORT_SHA=$(git rev-parse --short HEAD)
+          FIRMWARE_VERSION=$(sed -nE 's/^[[:space:]]*-D[[:space:]]*FIRMWARE_VERSION=[^0-9a-zA-Z._-]*([0-9a-zA-Z._-]+).*/\1/p' platformio.ini)
+          SHORT_SHA=$(git describe --always --dirty=* --exclude='*')
 
-          if [[ -z "${LUSOFW_FIRMWARE_VERSION}" ]]; then
-            echo "Failed to extract LUSOFW_FIRMWARE_VERSION from examples/simple_repeater/MyMesh.h"
-            exit 1
-          fi
+          [[ -n "${FIRMWARE_VERSION}" ]] || { echo "Failed to extract FIRMWARE_VERSION from platformio.ini" >&2; exit 1; }
+          FIRMWARE_VERSION="v${FIRMWARE_VERSION#v}"
 
-          # Ensure the version (and therefore the tag) always carries a "v" prefix.
-          if [[ "${LUSOFW_FIRMWARE_VERSION}" != v* ]]; then
-            LUSOFW_FIRMWARE_VERSION="v${LUSOFW_FIRMWARE_VERSION}"
-          fi
-
-          echo "RELEASE_TAG=${LUSOFW_FIRMWARE_VERSION}-${SHORT_SHA}" >> "$GITHUB_ENV"
-          echo "RELEASE_VERSION=${LUSOFW_FIRMWARE_VERSION}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=${FIRMWARE_VERSION}-${SHORT_SHA}" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${FIRMWARE_VERSION}" >> "$GITHUB_ENV"
           echo "RELEASE_SHA=${SHORT_SHA}" >> "$GITHUB_ENV"
 
       - name: Create and push prerelease tag
