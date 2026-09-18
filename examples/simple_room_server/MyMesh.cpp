@@ -1,5 +1,5 @@
 #include "MyMesh.h"
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
 #include "lusofw/InterferenceAuto.h"   // int.thresh 255 -> derive threshold from current SF
 #endif
 
@@ -844,7 +844,7 @@ void MyMesh::setTxPower(int8_t power_dbm) {
   radio_driver.setTxPower(power_dbm);
 }
 
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
 int MyMesh::getInterferenceThreshold() const {
   // resolve against the LIVE SF so `tempradio` windows are tracked correctly
   return InterferenceAuto::resolve(_prefs.interference_threshold,

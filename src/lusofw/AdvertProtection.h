@@ -1,11 +1,11 @@
 #pragma once
 
-#if defined(ENABLE_ADVERT_PROTECT)
+#if defined(LUSOFW_ADVERT_PROTECT)
 
 #include <Mesh.h>
 
 /*
- * Advert protection policy for lusofw (ENABLE_ADVERT_PROTECT).
+ * Advert protection policy for lusofw (LUSOFW_ADVERT_PROTECT).
  * Fully static: no instance state, no changes to the embedding class beyond
  * one call site (see examples/simple_repeater/MyMesh.cpp).
  *
@@ -39,4 +39,4 @@ public:
   static bool allowRepeaterAdvertRepeat(const mesh::Identity& origin, uint32_t now);
 };
 
-#endif // ENABLE_ADVERT_PROTECT
+#endif // LUSOFW_ADVERT_PROTECT

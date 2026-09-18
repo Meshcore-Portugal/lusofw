@@ -156,7 +156,7 @@ protected:
   uint32_t getRetransmitDelay(const mesh::Packet* packet) override;
   uint32_t getDirectRetransmitDelay(const mesh::Packet* packet) override;
 
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
   int getInterferenceThreshold() const override;   // impl in MyMesh.cpp (resolves from live SF)
 #else
   int getInterferenceThreshold() const override {

@@ -1,17 +1,17 @@
 #include "MyMesh.h"
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
 #include "lusofw/InterferenceAuto.h"   // int.thresh 255 -> derive threshold from current SF
 #endif
-#if defined(ENABLE_AUTO_REGIONS)
+#if defined(LUSOFW_AUTO_REGIONS)
 #include "lusofw/AutoRegions.h"
 #endif
-#if defined(ENABLE_NETWORK_TIME)
+#if defined(LUSOFW_NETWORK_TIME)
 #include "lusofw/NetTimeSync.h"   // trusted network time sync policy
 #endif
-#if defined(ENABLE_ADVERT_PROTECT)
+#if defined(LUSOFW_ADVERT_PROTECT)
 #include "lusofw/AdvertProtection.h"   // repeat remote repeater adverts at most once per 12h
 #endif
-#if defined(ENABLE_SMART_ADVERTS)
+#if defined(LUSOFW_SMART_ADVERTS)
 #include "lusofw/SmartAdverts.h"   // deterministic 23h rolling-window advert slots
 #endif
 #include <algorithm>
@@ -695,7 +695,7 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
                           const uint8_t *app_data, size_t app_data_len) {
   mesh::Mesh::onAdvertRecv(packet, id, timestamp, app_data, app_data_len); // chain to super impl
 
-#if defined(ENABLE_ADVERT_PROTECT)
+#if defined(LUSOFW_ADVERT_PROTECT)
   // lusofw: repeat each remote repeater's advert at most once every 12h (see
   // lusofw/AdvertProtection.h)
   if (packet->isRouteFlood() && !isShare(packet)) {
@@ -715,7 +715,7 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
     }
   }
 
-#ifdef ENABLE_NETWORK_TIME
+#ifdef LUSOFW_NETWORK_TIME
   if (NetTimeSync::handleTimekeeperAdvert(id, timestamp, app_data, app_data_len,
                                           packet->getPathHashCount(), *getRTCClock())) {
     updateFloodAdvertTimer();  // reschedule smart advert against new clock (cf. name change)
@@ -856,7 +856,7 @@ void MyMesh::onControlDataRecv(mesh::Packet *packet) {
 
   uint8_t type = packet->payload[0] & 0xF0; // just test upper 4 bits
 
-#if !defined(ENABLE_STEALTH_MODE)
+#if !defined(LUSOFW_STEALTH_MODE)
   if (type == CTL_TYPE_NODE_DISCOVER_REQ && packet->payload_len >= 6 && !_prefs.disable_fwd &&
       discover_limiter.allow(rtc_clock.getCurrentTime())) {
     int i = 1;
@@ -1079,7 +1079,7 @@ void MyMesh::begin(FILESYSTEM *fs) {
     }
   }
 
-#if defined(ENABLE_AUTO_REGIONS)
+#if defined(LUSOFW_AUTO_REGIONS)
   // Evaluate and assign initial geographical regions based on GPS coordinates
   AutoRegions::checkRegionAutoAssign(region_map, _prefs, _fs);
 #endif
@@ -1099,7 +1099,7 @@ void MyMesh::begin(FILESYSTEM *fs) {
   board.setLoRaFemLnaEnabled(_prefs.radio_fem_rxgain);
   board.setLoRaFemPaGainEnabled(_prefs.radio_fem_txgain);
 
-#ifndef ENABLE_SMART_ADVERTS
+#ifndef LUSOFW_SMART_ADVERTS
   updateAdvertTimer();
   updateFloodAdvertTimer();
 #endif
@@ -1164,7 +1164,7 @@ void MyMesh::sendSelfAdvertisement(int delay_millis, bool flood) {
 }
 
 void MyMesh::updateAdvertTimer() {
-#ifndef ENABLE_SMART_ADVERTS
+#ifndef LUSOFW_SMART_ADVERTS
   if (_prefs.advert_interval > 0) { // schedule local advert timer
     next_local_advert = futureMillis(((uint32_t)_prefs.advert_interval) * 2 * 60 * 1000);
   } else {
@@ -1172,18 +1172,18 @@ void MyMesh::updateAdvertTimer() {
   }
 #else
   next_local_advert = 0; // stop the timer
-  MESH_DEBUG_PRINTLN("Local advert timer disabled (ENABLE_SMART_ADVERTS mode)");
+  MESH_DEBUG_PRINTLN("Local advert timer disabled (LUSOFW_SMART_ADVERTS mode)");
 #endif
 }
 
 void MyMesh::updateFloodAdvertTimer() {
-#ifndef ENABLE_SMART_ADVERTS
+#ifndef LUSOFW_SMART_ADVERTS
   if (_prefs.flood_advert_interval > 0) { // schedule flood advert timer
     next_flood_advert = futureMillis((uint32_t)(_prefs.flood_advert_interval) * 60 * 60 * 1000);
   } else {
     next_flood_advert = 0; // stop the timer
   }
-#else  // ENABLE_SMART_ADVERTS
+#else  // LUSOFW_SMART_ADVERTS
   if (_prefs.flood_advert_interval == 0) {
     next_flood_advert = 0; // stop the timer
     return;
@@ -1228,7 +1228,7 @@ void MyMesh::setTxPower(int8_t power_dbm) {
   radio_driver.setTxPower(power_dbm);
 }
 
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
 int MyMesh::getInterferenceThreshold() const {
   // resolve against the LIVE SF so `tempradio` windows are tracked correctly
   return InterferenceAuto::resolve(_prefs.interference_threshold,
@@ -1321,7 +1321,7 @@ void MyMesh::onDefaultRegionChanged(const RegionEntry* r) {
 }
 
 void MyMesh::onNodeConfigChanged() {
-#if defined(ENABLE_AUTO_REGIONS)
+#if defined(LUSOFW_AUTO_REGIONS)
   // Re-evaluate and reassign geographical regions based on the new name/coordinates
   // (manual radio commands latch prefs.radio_manual themselves in CommonCLI)
   AutoRegions::checkRegionAutoAssign(region_map, _prefs, _fs);
@@ -1463,7 +1463,7 @@ void MyMesh::loop() {
 
   mesh::Mesh::loop();
 
-#ifndef ENABLE_SMART_ADVERTS
+#ifndef LUSOFW_SMART_ADVERTS
   if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
     uint32_t delay_millis = 0;
@@ -1477,7 +1477,7 @@ void MyMesh::loop() {
 
     updateAdvertTimer(); // schedule next local advert
   }
-#else  // ENABLE_SMART_ADVERTS
+#else  // LUSOFW_SMART_ADVERTS
   // Periodic scheduler for legacy advertisements.
   // This runs at most once per second so we do not repeatedly evaluate timers
   // on every loop iteration.
@@ -1513,7 +1513,7 @@ void MyMesh::loop() {
   if (set_radio_at && millisHasNowPassed(set_radio_at)) { // apply pending (temporary) radio params
     set_radio_at = 0;                                     // clear timer
     radio_driver.setParams(pending_freq, pending_bw, pending_sf, pending_cr);
-#if defined(ENABLE_AUTO_REGIONS)
+#if defined(LUSOFW_AUTO_REGIONS)
     // Re-derive tx power for the temporary frequency (e.g. 14 dBm sub-bands)
     AutoRegions::applyRadioRegulation(_prefs, pending_freq);
     radio_driver.setTxPower(_prefs.tx_power_dbm);
@@ -1524,7 +1524,7 @@ void MyMesh::loop() {
   if (revert_radio_at && millisHasNowPassed(revert_radio_at)) { // revert radio params to orig
     revert_radio_at = 0;                                        // clear timer
     radio_driver.setParams(_prefs.freq, _prefs.bw, _prefs.sf, _prefs.cr);
-#if defined(ENABLE_AUTO_REGIONS)
+#if defined(LUSOFW_AUTO_REGIONS)
     AutoRegions::applyRadioRegulation(_prefs, _prefs.freq);
     radio_driver.setTxPower(_prefs.tx_power_dbm);
 #endif

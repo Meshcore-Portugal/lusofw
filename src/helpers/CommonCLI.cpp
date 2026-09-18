@@ -857,7 +857,7 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
   } else if (memcmp(config, "af", 2) == 0) {
     sprintf(reply, "> %s", StrHelper::ftoa(_prefs->airtime_factor));
   } else if (memcmp(config, "int.thresh", 10) == 0) {
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
     if (_prefs->interference_threshold == 255) {   // InterferenceAuto::AUTO (lusofw/InterferenceAuto.h)
       strcpy(reply, "> auto");
     } else {

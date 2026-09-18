@@ -3,7 +3,7 @@
 // anchors, the MyMesh::loop scheduler model, and the fix for the
 // flood_advert_interval==0 arming (commit caffd8ed).
 //
-// The scheduler simulation replicates MyMesh::loop()'s ENABLE_SMART_ADVERTS
+// The scheduler simulation replicates MyMesh::loop()'s LUSOFW_SMART_ADVERTS
 // branch and updateFloodAdvertTimer() one-to-one, ticking once per second.
 #include <gtest/gtest.h>
 
@@ -59,7 +59,7 @@ void CheckRtcInvariant(const char* name, const uint8_t* key4, uint32_t now) {
   ASSERT_EQ(t, expected) << "now=" << now << " w=" << w;
 }
 
-// 1:1 replication of MyMesh::loop()'s ENABLE_SMART_ADVERTS branch plus
+// 1:1 replication of MyMesh::loop()'s LUSOFW_SMART_ADVERTS branch plus
 // updateFloodAdvertTimer() (with the caffd8ed interval==0 early return).
 struct SimResult {
   std::vector<uint64_t> send_full_millis;

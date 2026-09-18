@@ -1,4 +1,4 @@
-#if defined(ENABLE_ADVERT_PROTECT)
+#if defined(LUSOFW_ADVERT_PROTECT)
 
 #include "AdvertProtection.h"
 
@@ -64,4 +64,4 @@ bool AdvertProtection::allowRepeaterAdvertRepeat(const mesh::Identity& origin, u
   return true;
 }
 
-#endif // ENABLE_ADVERT_PROTECT
+#endif // LUSOFW_ADVERT_PROTECT

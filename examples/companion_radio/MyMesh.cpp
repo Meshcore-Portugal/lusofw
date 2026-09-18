@@ -2,7 +2,7 @@
 
 #include <Arduino.h> // needed for PlatformIO
 #include <Mesh.h>
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
 #include "lusofw/InterferenceAuto.h"
 #endif
 
@@ -262,7 +262,7 @@ float MyMesh::getAirtimeBudgetFactor() const {
 }
 
 int MyMesh::getInterferenceThreshold() const {
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
   return InterferenceAuto::resolve(_prefs.interference_threshold,
                                    radio_driver.getSpreadingFactor());
 #else

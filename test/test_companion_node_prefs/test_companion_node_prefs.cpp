@@ -98,7 +98,7 @@ TEST(CompanionNodePrefs, MissingInterferenceThresholdKeepsDefault) {
   NodePrefs loaded;
 
   ASSERT_TRUE(loaded.loadSerial(input));
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
   EXPECT_EQ(255, loaded.interference_threshold);
 #else
   EXPECT_EQ(0, loaded.interference_threshold);

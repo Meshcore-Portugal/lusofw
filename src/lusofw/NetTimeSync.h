@@ -1,11 +1,11 @@
 #pragma once
 
-#if defined(ENABLE_NETWORK_TIME)
+#if defined(LUSOFW_NETWORK_TIME)
 
 #include <Mesh.h>
 
 /*
- * Network time synchronisation policy for lusofw (ENABLE_NETWORK_TIME).
+ * Network time synchronisation policy for lusofw (LUSOFW_NETWORK_TIME).
  * Fully static: no instance state, no changes to the embedding class beyond
  * one-line call sites (see examples/simple_repeater/MyMesh.cpp).
  *
@@ -52,4 +52,4 @@ public:
   static uint32_t getHighWater();
 };
 
-#endif // ENABLE_NETWORK_TIME
+#endif // LUSOFW_NETWORK_TIME

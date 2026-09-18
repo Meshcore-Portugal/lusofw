@@ -50,7 +50,7 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
       prefs.interference_threshold = 255;
     }
 
-#if defined(ENABLE_AUTO_REGIONS)
+#if defined(LUSOFW_AUTO_REGIONS)
     // Retire the legacy "#portugal" region. applyDefaults owns the region map
     // persistence: it loads the map here and saves only when something was
     // actually removed. A blocked retirement reports false so the caller does

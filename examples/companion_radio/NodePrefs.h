@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint> // For uint8_t, uint32_t
 #include <helpers/ConfigSerializer.h>
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
 #include "lusofw/InterferenceAuto.h"
 #endif
 
@@ -20,7 +20,7 @@ public:
   float freq = 0;
   uint8_t sf = 0;
   uint8_t cr = 0;
-#if defined(LUSOFW_RADIO_INT_THR_AUTO)
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
   uint8_t interference_threshold = InterferenceAuto::AUTO;
 #else
   uint8_t interference_threshold = 0;

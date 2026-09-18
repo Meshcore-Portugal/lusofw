@@ -1,12 +1,12 @@
 #pragma once
 
-#if defined(ENABLE_SMART_ADVERTS)
+#if defined(LUSOFW_SMART_ADVERTS)
 
 #include <Mesh.h>
 #include <string.h>
 
 /*
- * Smart advert scheduling policy for lusofw (ENABLE_SMART_ADVERTS).
+ * Smart advert scheduling policy for lusofw (LUSOFW_SMART_ADVERTS).
  * Fully static, pure math: no state, no timers -- the caller (MyMesh) owns the
  * timer variable and the log output, this class only computes WHEN the next
  * flood advert is due.
@@ -101,4 +101,4 @@ public:
   }
 };
 
-#endif // ENABLE_SMART_ADVERTS
+#endif // LUSOFW_SMART_ADVERTS

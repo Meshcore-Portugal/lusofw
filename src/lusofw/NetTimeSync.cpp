@@ -1,4 +1,4 @@
-#if defined(ENABLE_NETWORK_TIME)
+#if defined(LUSOFW_NETWORK_TIME)
 
 #include "NetTimeSync.h"
 
@@ -76,4 +76,4 @@ uint32_t NetTimeSync::getHighWater() {
   return ram_mark;
 }
 
-#endif // ENABLE_NETWORK_TIME
+#endif // LUSOFW_NETWORK_TIME

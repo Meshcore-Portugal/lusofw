@@ -1,4 +1,4 @@
-#if defined(ENABLE_AUTO_REGIONS)
+#if defined(LUSOFW_AUTO_REGIONS)
 
 #include "AutoRegions.h"
 
@@ -451,4 +451,4 @@ void AutoRegions::checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs,
     }
 }
 
-#endif // ENABLE_AUTO_REGIONS
+#endif // LUSOFW_AUTO_REGIONS
