@@ -14,6 +14,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 - REPETIDOR: Adicionada proteção de adverts (`LUSOFW_ADVERT_PROTECT`): o advert de cada repetidor remoto é repetido no máximo uma vez a cada 12 horas (por chave pública); os adverts duplicados continuam a ser processados localmente, mas já não são retransmitidos. Motivado por firmware muito antigo que entra frequentemente em boot loop e gera advert storms durante horas.
 - REPETIDOR: A atribuição automática de regiões em Portugal cria `#pt-433` para 433 MHz e `#pt-868` para 868 MHz, como filhas de `#pt`.
 - REPETIDOR: Adicionado perfil de tier persistente com `set tier <0-3>` e `get tier`. Cada nível aplica os valores de `rxdelay`, `txdelay` e `direct.txdelay` adequados a infraestrutura, cobertura regional, cobertura local ou uso pessoal/interior; instalações novas e migrações usam o nível 3. O comando `get role` do upstream volta a reportar a função do firmware (p. ex. `repeater`).
+- REPETIDOR: A deteção de loops (`loop.detect`) passa a utilizar sensibilidade moderada (`LOOP_DETECT_MODERATE`) por predefinição, em vez de mínima.
 
 ### Segurança
 
