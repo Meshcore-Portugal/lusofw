@@ -32,6 +32,8 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 - REPETIDOR: Os limitadores de cadência (pedidos anónimos e descoberta de vizinhos) reancoram a janela quando o relógio dá um salto para trás (correção do timekeeper), em vez de negarem as respostas durante todo o delta da correção.
 - REPETIDOR: O tempo limite do `tempradio` satura em 35 791 minutos (o máximo representável no temporizador interno), em vez de sofrer overflow aritmético e colapsar a janela para cerca de 2 segundos.
 - REPETIDOR: Um ficheiro `/regions2` existente mas ilegível ou truncado (por exemplo, por perda de alimentação durante a gravação) passa a ser reportado no arranque, em vez de carregar silenciosamente um mapa parcial; a ausência do ficheiro (instalação nova) mantém-se silenciosa.
+- RÁDIO: A preferência `int.thresh` deixa de ser reposta em cada mudança de versão do firmware: um limiar configurado pelo utilizador é preservado entre atualizações. A migração única anterior a 2026.9.1, que instala o modo automático (255) quando não havia valor guardado, mantém-se.
+- REPETIDOR: Os atrasos de transmissão e receção (`rxdelay`, `txdelay` e `direct.txdelay`) deixam de ser repostos em cada mudança de versão do firmware, preservando o perfil de tier (`tier`) configurado ou eventuais ajustes manuais.
 
 #### Melhorias
 
@@ -58,7 +60,7 @@ main@d92964352441e53b93e8667b802e04f6e072b39e
 
 ### Notas
 
-- REPETIDOR: Em qualquer mudança de versão do firmware, as preferências `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval`, `advert.interval` e `advert_loc_policy` são repostas para os valores predefinidos do firmware; os valores definidos pelo utilizador são descartados.
+- REPETIDOR: Em qualquer mudança de versão do firmware, as preferências `cad`, `loop.detect`, `path.hash.mode`, `flood.advert.interval`, `advert.interval` e `advert_loc_policy` são repostas para os valores predefinidos do firmware; os valores definidos pelo utilizador são descartados.
 
 ## [v2026.7.1] - 01/07/2026
 
