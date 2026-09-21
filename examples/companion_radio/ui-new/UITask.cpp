@@ -72,11 +72,6 @@ public:
 
     // Text goes through the normal 1-bit buffer, placed just below the logo
     // (which occupies physical y 10..63). endFrame only paints this band.
-    const char *website = "https://meshcore.pt";
-    display.setColor(UIColor::primary_txt);
-    display.setTextSize(1);
-    display.drawTextCentered(display.width() / 2, 37, website);
-
     display.setColor(UIColor::secondary_txt);
     display.setTextSize(1);
     display.drawTextCentered(display.width() / 2, 47, _version_info);
