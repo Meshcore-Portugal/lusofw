@@ -48,9 +48,10 @@ void UITask::begin(NodePrefs* node_prefs, const char* build_date, const char* fi
 void UITask::renderCurrScreen() {
   char tmp[80];
 #ifdef HAS_RGB_LOGO
+  // [lusofw] keep on merge: boot logo is NOT drawn here. It is blitted once
+  // AFTER endFrame() in loop(), so the 1-bit diff repaint can never overwrite
+  // it with black/white bands (fixes blink + slow band-by-band paint).
   if (millis() < _started_at + BOOT_SCREEN_MILLIS) {
-    int lx = (PANEL_NATIVE_W - MESHCORE_LOGO_RGB_W) / 2;
-    _display->drawRGBBitmap(lx, 10, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
     _display->setColor(UIColor::primary_txt);
     _display->setTextSize(1);
     _display->drawTextCentered(_display->width() / 2, 37, BootScreen::WEBSITE);
@@ -58,7 +59,8 @@ void UITask::renderCurrScreen() {
     _display->drawTextCentered(_display->width() / 2, 47, _version_info);
   } else if (_powering_off_at > 0) {
     int lx = (PANEL_NATIVE_W - MESHCORE_LOGO_RGB_W) / 2;
-    _display->drawRGBBitmap(lx, 10, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
+    int ly = (PANEL_NATIVE_H - MESHCORE_LOGO_RGB_H) / 2;
+    _display->drawRGBBitmap(lx, ly, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
     _display->setColor(UIColor::primary_txt);
     _display->setTextSize(1);
     _display->drawTextCentered(_display->width() / 2, 37, BootScreen::WEBSITE);
@@ -129,6 +131,20 @@ void UITask::loop() {
       _display->startFrame();
       renderCurrScreen();
       _display->endFrame();
+
+#ifdef HAS_RGB_LOGO
+      // [lusofw] keep on merge: RGB logo blitted once, after endFrame(), so
+      // the 1-bit diff repaint can never stomp it with black/white bands
+      // (fixes blink-once + slow band paint during boot screen wait).
+      // Requires PANEL_NATIVE_W / PANEL_NATIVE_H flags on color panels.
+      static bool _logo_drawn = false;
+      if (!_logo_drawn && _display->isOn()) {
+        int lx = (PANEL_NATIVE_W - MESHCORE_LOGO_RGB_W) / 2;
+        int ly = (PANEL_NATIVE_H - MESHCORE_LOGO_RGB_H) / 2;
+        _display->drawRGBBitmap(lx, ly, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
+        _logo_drawn = true;
+      }
+#endif
 
       _next_refresh = millis() + 1000;   // refresh every second
     }
