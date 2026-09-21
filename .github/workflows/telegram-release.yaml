@@ -20,7 +20,7 @@ jobs:
         run: |
           # ponytail: jq builds json payload; upgrade to custom template file if message structure grows
           TYPE=$([ "${IS_PRERELEASE}" = "true" ] && echo "Pre-release (RC)" || echo "Production Release")
-          MSG="🚀 <b>New ${TYPE}:</b> <a href=\"${RELEASE_URL}\">${RELEASE_TAG}</a>"$'\n\n'"${RELEASE_NAME}"
+          MSG=$(printf '🚀 <b>New %s:</b> <a href="%s">%s</a>\n\nPode flashar online através do <a href="https://meshcore.pt/tools/flasher">firmware flasher</a>.' "${TYPE}" "${RELEASE_URL}" "${RELEASE_NAME}")
 
           PAYLOAD=$(jq -n \
             --arg chat_id "${CHAT_ID}" \
