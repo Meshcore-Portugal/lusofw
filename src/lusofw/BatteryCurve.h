@@ -12,9 +12,8 @@
  * LiPo state-of-charge estimation shared by the lusofw UIs (simple_repeater,
  * companion_radio ui-new and ui-orig).
  *
- * Fully static: one pure function, no state. The number of cells in series is
- * derived from BATT_MAX_MILLIVOLTS, so the same per-cell curve works for
- * 1S (4.2 V) and 2S (8.4 V) packs.
+ * The number of cells in series is derived from BATT_MAX_MILLIVOLTS, so the
+ * same per-cell curve works for 1S (4.2 V) and 2S (8.4 V) packs.
  */
 class BatteryCurve {
 public:

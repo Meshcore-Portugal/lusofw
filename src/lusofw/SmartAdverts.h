@@ -7,9 +7,6 @@
 
 /*
  * Smart advert scheduling policy for lusofw (LUSOFW_SMART_ADVERTS).
- * Fully static, pure math: no state, no timers -- the caller (MyMesh) owns the
- * timer variable and the log output, this class only computes WHEN the next
- * flood advert is due.
  *
  * Instead of every repeater advertising on its own fixed interval (which
  * synchronises into storms), each node hashes its identity into one

@@ -71,11 +71,7 @@ struct CountryRegions {
 // that policy ever changes, AutoRegions must be adapted to use coordinates
 // provided by GPS hardware. Until then, evaluation uses the node's configured
 // coordinates, then the node-name prefix fallback, then the compile-time
-// default coordinates (regulation only). This module is intentionally
-// decoupled from any specific application class: callers pass the RegionMap,
-// NodePrefs and filesystem it should operate on. It depends only on MeshCore
-// library types, so it can be compiled into any firmware environment without
-// pulling in an app-specific header.
+// default coordinates (regulation only).
 class AutoRegions {
 public:
   static void checkRegionAutoAssign(RegionMap& region_map, NodePrefs& prefs, FILESYSTEM* fs);

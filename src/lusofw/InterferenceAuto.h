@@ -2,9 +2,6 @@
 
 /*
  * Auto interference threshold for lusofw.
- * Fully static: no instance state, no changes outside the embedding class'
- * getInterferenceThreshold() override (and the CommonCLI display of the
- * sentinel).
  *
  * prefs.interference_threshold keeps its meaning: 0 disables the RSSI-based
  * listen-before-talk, 1..254 is a fixed threshold in dB above the measured

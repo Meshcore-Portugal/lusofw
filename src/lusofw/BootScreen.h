@@ -8,9 +8,6 @@
  * simple_room_server, simple_sensor and companion_radio ui-orig): the
  * MeshCore-Portugal logo centered on the panel, the project website and one
  * text line below it (version info, or "Turning OFF" while shutting down).
- *
- * Pure drawing helpers: no state and no timers -- the caller decides WHEN the
- * boot screen is shown and supplies the bottom line's text and color.
  */
 class BootScreen {
 public:

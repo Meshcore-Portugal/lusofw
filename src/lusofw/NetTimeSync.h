@@ -6,8 +6,6 @@
 
 /*
  * Network time synchronisation policy for lusofw (LUSOFW_NETWORK_TIME).
- * Fully static: no instance state, no changes to the embedding class beyond
- * one-line call sites (see examples/simple_repeater/MyMesh.cpp).
  *
  * The trusted timekeeper identity, plausibility checks and anti-replay policy
  * all live in the .cpp.

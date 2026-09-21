@@ -6,8 +6,6 @@
 
 /*
  * Advert protection policy for lusofw (LUSOFW_ADVERT_PROTECT).
- * Fully static: no instance state, no changes to the embedding class beyond
- * one call site (see examples/simple_repeater/MyMesh.cpp).
  *
  * The first advert heard from a given remote REPEATER is allowed to be
  * repeated by us; any further advert from the same origin (public key) is a
@@ -21,8 +19,7 @@
  *
  * The window is armed at ACCEPT time: an advert we allow but that is later
  * dropped by allowPacketForward() (forwarding disabled, hop limit) still
- * starts a new window. Accepted to keep a single call site; it self-corrects
- * at the next window.
+ * starts a new window. It self-corrects at the next window.
  */
 class AdvertProtection {
 public:
