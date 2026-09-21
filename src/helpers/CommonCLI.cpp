@@ -636,7 +636,7 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
     savePrefs();
     _callbacks->onNodeConfigChanged();
     strcpy(reply, "OK");
-  } else if (memcmp(config, "role ", 5) == 0) {
+  } else if (memcmp(config, "tier ", 5) == 0) {
     const char* value = &config[5];
     if (strcmp(_callbacks->getRole(), "repeater") != 0) {
       strcpy(reply, "Error: unsupported");
@@ -954,11 +954,9 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
     strcpy(reply, "> ");
     mesh::Utils::toHex(&reply[2], _callbacks->getSelfId().pub_key, PUB_KEY_SIZE);
   } else if (memcmp(config, "role", 4) == 0 && config[4] == 0) {
-    if (strcmp(_callbacks->getRole(), "repeater") == 0) {
-      sprintf(reply, "> %d", (uint32_t)_prefs->role);
-    } else {
-      sprintf(reply, "> %s", _callbacks->getRole());
-    }
+    sprintf(reply, "> %s", _callbacks->getRole());
+  } else if (memcmp(config, "tier", 4) == 0 && config[4] == 0) {
+    sprintf(reply, "> %d", (uint32_t)_prefs->role);
   } else if (memcmp(config, "bridge.type", 11) == 0) {
     sprintf(reply, "> %s",
 #ifdef WITH_RS232_BRIDGE
