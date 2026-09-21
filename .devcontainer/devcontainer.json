@@ -20,7 +20,7 @@
 	"runArgs": [
 		"--privileged",
 		"--network=host",
-		"--device=/dev/bus/usb",
+		"--volume=/dev:/dev",
 		"--group-add=986",
 		"--group-add=20",
 		"--env-file",
@@ -70,7 +70,6 @@
 				"Anthropic.claude-code",
 				"github.vscode-github-actions",
 				"GitHub.vscode-pull-request-github",
-				"openai.chatgpt",
 				"platformio.platformio-ide"
 			],
 			"unwantedRecommendations": [
