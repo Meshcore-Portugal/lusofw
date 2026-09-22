@@ -19,7 +19,6 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
   prefs.advert_interval = 0;                  // direct adverts are legacy
   prefs.advert_loc_policy = ADVERT_LOC_PREFS; // use coordinates from prefs
   prefs.flood_advert_interval = 23;           // defaults to 23h on lusofw, when >0 enabled our custom advert handling
-  prefs.cad_enabled = 1;                      // enable hardware CAD listen-before-talk (set cad off to disable)
   prefs.loop_detect = LOOP_DETECT_MODERATE;   // default to minimal loop detection
   prefs.path_hash_mode = 1;                   // default to 2 bytes
 
@@ -47,6 +46,11 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
   }
 
   if (versionLessThan(version, "2026.9.1")) {
+    if (prefs.cad_enabled == 1) {
+      // disable hardware CAD listen-before-talk
+      prefs.cad_enabled = 0;
+    }
+
     if (prefs.interference_threshold == 0) {
       // If interference_threshold was not explicitly set, default it to 255
       prefs.interference_threshold = 255;
