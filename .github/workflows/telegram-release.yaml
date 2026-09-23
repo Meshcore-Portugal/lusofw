@@ -1,0 +1,33 @@
+name: Notify Telegram on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram notification
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          # ponytail: jq builds json payload; upgrade to custom template file if message structure grows
+          TYPE=$([ "${IS_PRERELEASE}" = "true" ] && echo "Pre-release (RC)" || echo "Production Release")
+          MSG=$(printf '🚀 <b>New %s:</b> <a href="%s">%s</a>\n\nPode flashar online através do <a href="https://meshcore.pt/tools/flasher">firmware flasher</a>.' "${TYPE}" "${RELEASE_URL}" "${RELEASE_NAME}")
+
+          PAYLOAD=$(jq -n \
+            --arg chat_id "${CHAT_ID}" \
+            --arg text "${MSG}" \
+            --arg thread_id "${THREAD_ID}" \
+            '{"chat_id": $chat_id, "parse_mode": "HTML", "text": $text} + (if $thread_id != "" then {"message_thread_id": ($thread_id | tonumber)} else {} end)')
+
+          curl -fsS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"

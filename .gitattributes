@@ -1,0 +1,5 @@
+# Vendored files that upstream ships with CRLF endings. Disable all EOL
+# conversion so committed bytes stay identical to upstream's convention and
+# diffs/merges against upstream remain line-exact.
+variants/minewsemi_me25ls01/platformio.ini -text
+variants/wio_wm1110/platformio.ini -text

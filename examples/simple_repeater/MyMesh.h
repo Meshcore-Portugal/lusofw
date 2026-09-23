@@ -11,6 +11,7 @@
   #include <LittleFS.h>
 #elif defined(ESP32)
   #include <SPIFFS.h>
+  using File = fs::File;
 #endif
 
 #ifdef WITH_RS232_BRIDGE
@@ -32,8 +33,10 @@
 #include <helpers/StaticPoolPacketManager.h>
 #include <helpers/StatsFormatHelper.h>
 #include <helpers/TxtDataHelpers.h>
-#include <helpers/LusoDefaults.h>
 #include <helpers/RegionMap.h>
+#include <lusofw/Defaults.h>
+#include <lusofw/RepeaterRole.h>
+#include <helpers/RoutingPolicy.h>
 #include "RateLimiter.h"
 
 #ifdef WITH_BRIDGE
@@ -70,15 +73,11 @@ struct NeighbourInfo {
 };
 
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE   "6 Jun 2026"
+  #define FIRMWARE_BUILD_DATE   "14 Aug 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION "v1.16.0"
-#endif
-
-#ifndef LUSOFW_FIRMWARE_VERSION
-  #define LUSOFW_FIRMWARE_VERSION "2026.7.1"
+  #define FIRMWARE_VERSION   "v1.17.1"
 #endif
 
 #define FIRMWARE_ROLE "repeater"
@@ -96,8 +95,7 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
   CommonCLI _cli;
   uint8_t reply_data[MAX_PACKET_PAYLOAD];
   uint8_t reply_path[MAX_PATH_SIZE];
-  int8_t  reply_path_len;
-  uint8_t reply_path_hash_size;
+  uint8_t reply_path_len;
   TransportKeyStore key_store;
   RegionMap region_map, temp_map;
   RegionEntry* load_stack[8];
@@ -125,10 +123,6 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
 #endif
   // new advert system variables
   unsigned long next_advert_check, next_flood_advert_offset;
-  uint8_t adverts_sent;
-  // Highest network time timestamp ACCEPTED this boot (RAM-only anti-replay
-  // high-water mark). Reset to 0 on every reboot. See ENABLE_NETWORK_TIME.
-  uint32_t last_network_sync_time = 0;
 
   void putNeighbour(const mesh::Identity& id, uint32_t timestamp, float snr);
   uint8_t handleLoginReq(const mesh::Identity& sender, const uint8_t* secret, uint32_t sender_timestamp, const uint8_t* data, bool is_flood);
@@ -158,9 +152,13 @@ protected:
   uint32_t getRetransmitDelay(const mesh::Packet* packet) override;
   uint32_t getDirectRetransmitDelay(const mesh::Packet* packet) override;
 
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
+  int getInterferenceThreshold() const override;   // impl in MyMesh.cpp (resolves from live SF)
+#else
   int getInterferenceThreshold() const override {
     return _prefs.interference_threshold;
   }
+#endif
   bool getCADEnabled() const override {
     return _prefs.cad_enabled;
   }
@@ -177,7 +175,7 @@ protected:
   }
 #endif
 
-  bool filterRecvFloodPacket(mesh::Packet* pkt) override;
+  mesh::DispatcherAction onRecvPacket(mesh::Packet* pkt) override;
 
   void onAnonDataRecv(mesh::Packet* packet, const uint8_t* secret, const mesh::Identity& sender, uint8_t* data, size_t len) override;
   int searchPeersByHash(const uint8_t* hash) override;
@@ -231,6 +229,7 @@ public:
   void startRegionsLoad() override;
   bool saveRegions() override;
   void onDefaultRegionChanged(const RegionEntry* r) override;
+  void onNodeConfigChanged() override;
 
   mesh::LocalIdentity& getSelfId() override { return self_id; }
 
@@ -247,7 +246,7 @@ public:
     {
       bridge.begin();
     }
-    else 
+    else
     {
       bridge.end();
     }
@@ -263,7 +262,10 @@ public:
   // To check if there is pending work
   bool hasPendingWork() const;
 
-#if defined(USE_SX1262) || defined(USE_SX1268)
-  void setRxBoostedGain(bool enable) override;
-#endif
+  bool setRxBoostedGain(bool enable) override;
+
+  #if defined(USE_LR2021)
+  virtual bool configSideDetectors(const uint8_t sideDetSFs[], uint8_t num, float bw) override;
+  #endif
+
 };

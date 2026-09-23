@@ -1,5 +1,67 @@
 # Changelog
 
+## [v2026.9.1] - 23/09/2026
+
+Based on MeshCore v1.17.1
+main@d92964352441e53b93e8667b802e04f6e072b39e
+
+### Funcionalidades
+
+- REPETIDOR: Atribuição automática de regiões geográficas a partir das coordenadas guardadas nas preferências do nó.
+- REPETIDOR: O ecrã de arranque e de encerramento do Heltec T114 passa a apresentar o logótipo colorido RGB565 de Portugal, igualando o comportamento do companion radio.
+- RÁDIO: Novo modo automático para o limiar de interferência (`set int.thresh 255`, `get int.thresh` responde `auto`), guardado pela flag de build `LUSOFW_RADIO_AUTO_THRESH`.
+- CLIENTE: O limiar de interferência RSSI (listen-before-talk) passa a ser aplicado no companion radio; até agora estava fixo em 0 (desligado). A preferência `int_thr` é agora persistida nos prefs e, com a flag `LUSOFW_RADIO_AUTO_THRESH`, instalações novas e atualizações sem valor guardado ficam em modo automático (`255`, limiar derivado do SF em vigor); um `0` explicitamente guardado mantém a função desativada.
+- REPETIDOR: Adicionada proteção de adverts (`LUSOFW_ADVERT_PROTECT`): o advert de cada repetidor remoto é repetido no máximo uma vez a cada 12 horas (por chave pública); os adverts duplicados continuam a ser processados localmente, mas já não são retransmitidos. Motivado por firmware muito antigo que entra frequentemente em boot loop e gera advert storms durante horas.
+- REPETIDOR: A atribuição automática de regiões em Portugal cria `#pt-433` para 433 MHz e `#pt-868` para 868 MHz, como filhas de `#pt`.
+- REPETIDOR: Adicionado perfil de tier persistente com `set tier <0-3>` e `get tier`. Cada nível aplica os valores de `rxdelay`, `txdelay` e `direct.txdelay` adequados a infraestrutura, cobertura regional, cobertura local ou uso pessoal/interior; instalações novas e migrações usam o nível 3. O comando `get role` do upstream volta a reportar a função do firmware (p. ex. `repeater`).
+- REPETIDOR: A deteção de loops (`loop.detect`) passa a utilizar sensibilidade moderada (`LOOP_DETECT_MODERATE`) por predefinição, em vez de mínima.
+
+### Segurança
+
+- REPETIDOR: A sincronização de hora por rede aceita agora correções do relógio em qualquer direção (incluindo para trás).
+- REPETIDOR: Adicionado limite de sanidade contra saltos impossíveis para a frente (timekeeper com bug ou comprometido).
+
+### Correções
+
+- CLIENTE: A página inicial do GPS agora fica oculta no carrossel quando nenhum GPS é detectado na porta série no arranque, em vez de aparecer sempre quando `ENV_INCLUDE_GPS` está ativado.
+- REPETIDOR: Corrigido o envio de flood adverts: agora respeita o `default_scope` e o modo de hash de caminho (`path_hash_mode` nas preferências).
+- REPETIDOR: Removida a redução probabilística de flood adverts.
+- REPETIDOR: Corrigido um *buffer overflow* no acumulador de comandos série.
+- NRF52: Limpo o registo de retenção GPREGRET (0) no arranque e antes do SYSTEMOFF, evitando que um valor mágico de DFU residual faça o dispositivo arrancar no modo bootloader.
+- RÁDIO: Em placas com amplificador de potência externo (LilyGo T-Beam 1W), a derivação regulamentar da UE passa a subtrair o ganho documentado do PA do limite de potência conduzida de cada sub-banda (`LUSOFW_TX_PA_GAIN`); a potência entregue no conector da antena deixa de exceder o limite da banda em cerca de 10 dB.
+- REPETIDOR: Os limitadores de cadência (pedidos anónimos e descoberta de vizinhos) reancoram a janela quando o relógio dá um salto para trás (correção do timekeeper), em vez de negarem as respostas durante todo o delta da correção.
+- REPETIDOR: O tempo limite do `tempradio` satura em 35 791 minutos (o máximo representável no temporizador interno), em vez de sofrer overflow aritmético e colapsar a janela para cerca de 2 segundos.
+- REPETIDOR: Um ficheiro `/regions2` existente mas ilegível ou truncado (por exemplo, por perda de alimentação durante a gravação) passa a ser reportado no arranque, em vez de carregar silenciosamente um mapa parcial; a ausência do ficheiro (instalação nova) mantém-se silenciosa.
+- RÁDIO: A preferência `int.thresh` deixa de ser reposta em cada mudança de versão do firmware: um limiar configurado pelo utilizador é preservado entre atualizações. A migração única anterior a 2026.9.1, que instala o modo automático (255) quando não havia valor guardado, mantém-se.
+- REPETIDOR: Os atrasos de transmissão e receção (`rxdelay`, `txdelay` e `direct.txdelay`) deixam de ser repostos em cada mudança de versão do firmware, preservando o perfil de tier (`tier`) configurado ou eventuais ajustes manuais.
+
+#### Melhorias
+
+- CLIENTE: Extraídos para `src/lusofw/` os módulos comuns `BootScreen` (logótipo de arranque), `BatteryCurve` (curva de descarga LiPo) e `SmartAdverts` (agendamento determinístico de adverts), eliminando código duplicado entre as UIs; sem alteração de comportamento.
+- RÁDIO: Os logs de RSSI/CAD em `isChannelActive()` e o log de conclusão de TX no `Dispatcher` passaram a estar guardados pela flag `LUSOFW_RADIO_DEBUG`.
+- CLI: Adicionada a leitura do motivo de arranque do ESP32 (`get pwrmgt.bootreason`).
+- CLI: Reforçada a cópia segura de strings no tratamento de comandos.
+- RÁDIO: Ajustado o atraso de retentativa CAD para um intervalo entre 120 e 360 ms.
+
+#### Observabilidade
+
+- DISPATCHER: Adicionados logs de debug para conclusão de TX.
+- ESTATÍSTICAS: Removidos parâmetros não usados na formatação de respostas.
+
+#### Build e Configuração
+
+- BUILD: Adicionadas as flags `LUSOFW_LIPO_CURVE` e `LUSOFW_BOOT_LOGO_PT`, que permitem reverter a curva de bateria LiPo e o logótipo de arranque para o comportamento upstream sem editar código.
+- BUILD: Convertidos os blocos mortos `#if 0` das UIs (ui-new/ui-orig) em guards nomeados e removido código de referência duplicado.
+- BUILD: `examples/simple_room_server/MyMesh.cpp` revertido para o conteúdo upstream: novas instalações de room server passam a utilizar o intervalo de flood advert predefinido do MeshCore (47 h); as instalações existentes não são afetadas.
+- BUILD: Removidas divergências cosméticas face ao conteúdo upstream e normalizados os fins-de-linha CRLF nos variants `minewsemi_me25ls01` e `wio_wm1110`, reduzindo conflitos em futuras sincronizações.
+- BUILD: Adicionada a variável `DISABLE_DEBUG` ao processo de build.
+- BUILD: Reorganizadas as build flags no platformio.ini.
+- BUILD: Adicionado o ambiente de build da ponte RS232 (`heltec_v4_repeater_bridge_rs232`) para o Heltec v4.
+
+### Notas
+
+- REPETIDOR: Em qualquer mudança de versão do firmware, as preferências `cad`, `loop.detect`, `path.hash.mode`, `flood.advert.interval`, `advert.interval` e `advert_loc_policy` são repostas para os valores predefinidos do firmware; os valores definidos pelo utilizador são descartados.
+
 ## [v2026.7.1] - 01/07/2026
 
 Based on MeshCore v1.16.0

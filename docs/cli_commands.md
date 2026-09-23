@@ -19,6 +19,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - [GPS](#gps-when-gps-support-is-compiled-in)
   - [Sensors](#sensors-when-sensor-support-is-compiled-in)
   - [Bridge](#bridge-when-bridge-support-is-compiled-in)
+  - [Ethernet](#ethernet-when-ethernet-support-is-compiled-in)
 
 ---
 
@@ -222,7 +223,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `set tx <dbm>`
 
 **Parameters:**
-- `dbm`: Power level in dBm (1-22)
+- `dbm`: Power level in dBm (-9 to 30)
 
 **Set by build flag:** `LORA_TX_POWER`
 
@@ -241,7 +242,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `bw`: Bandwidth in kHz (7.8-500)
 - `sf`: Spreading factor (5-12)
 - `cr`: Coding rate (5-8)
-- `timeout_mins`: Duration in minutes (must be > 0)
+- `timeout_mins`: Duration in minutes (must be > 0; values above 35791 saturate at 35791, about 24.8 days)
 
 **Note:** This is not saved to preferences and will clear on reboot
 
@@ -276,6 +277,36 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ---
 
+#### View or change the LoRa FEM receive-path gain state on supported boards
+**Usage:**
+- `get radio.fem.rxgain`
+- `set radio.fem.rxgain <state>`
+
+**Parameters:**
+- `state`: `on`|`off`
+
+**Notes:**
+- This controls the external LoRa FEM receive-path LNA where the board supports it.
+- This is separate from `radio.rxgain`, which controls the radio chip receive gain mode.
+
+---
+
+#### View or change the LoRa FEM transmit-path gain state on supported boards
+**Usage:**
+- `get radio.fem.txgain`
+- `set radio.fem.txgain <state>`
+
+**Parameters:**
+- `state`: `on`|`off`
+
+**Notes:**
+- This controls a software-selectable external LoRa FEM transmit gain where the board supports it.
+- On Station G3, remove the PA PL1 jumper to allow software control. `on` selects PA PL1 high/short and `off` selects PA PL1 low/open. The PA PL2 hardware jumper determines whether this switches between power levels 1/3 or 2/4.
+- Select an operating level and SX1262 transmit power that comply with local RF limits and the Station G3 power-supply requirements.
+- The setting is saved immediately, but on Station G3 the level is applied to the hardware at the start of the next transmit, so that the PA supply rail is never re-targeted while the PA is being driven. `get` reports the configured state, which may lead the hardware until the node next transmits.
+
+---
+
 ### System
 
 #### View or change this node's name
@@ -290,7 +321,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Default:** Varies by board
 
-**Note:** Max length varies. If a location is set, the max length is 24 bytes; 32 otherwise. Emoji and unicode characters may take more than one byte.
+**Note:** Advertised names can use up to 23 bytes when location is included and 31 bytes otherwise. Emoji and Unicode characters may take more than one byte. Names that exceed the available advert space are truncated at a valid UTF-8 code point boundary.
 
 ---
 
@@ -409,8 +440,20 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ---
 
-#### View this node's configured role
-**Usage:** `get role`
+#### View or set repeater tier
+**Usage:**
+- `get tier`
+- `set tier <0-3>`
+
+**Parameters:**
+- `0`: Tier 0, backbone or infrastructure. `direct.txdelay` 2.0, `rxdelay` 3.0, `txdelay` 2.0.
+- `1`: Tier 1, regional or elevated. `direct.txdelay` 1.0, `rxdelay` 3.0, `txdelay` 1.5.
+- `2`: Tier 2, local. `direct.txdelay` 0.4, `rxdelay` 3.0, `txdelay` 0.8.
+- `3`: Tier 3, personal or indoor. `direct.txdelay` 0.1, `rxdelay` 3.0, `txdelay` 0.3.
+
+**Default:** `3`
+
+**Note:** Setting a tier overwrites all three delay preferences and saves them.
 
 ---
 
@@ -431,6 +474,8 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 ---
 
 ### Routing
+
+**Note:** On every firmware version change, lusofw resets the following settings to their firmware defaults, discarding any user-set values: `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval` and `advert.interval`.
 
 #### View or change this node's repeat flag
 **Usage:**
@@ -492,7 +537,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `value`: Transmit delay factor (0-2)
 
-**Default:** `0.5`
+**Default:** `0.3` when tier is Tier 3
 
 **Note:** When multiple nearby repeaters all hear the same flood packet, each waits a random amount of time before retransmitting to avoid simultaneous collisions. This factor scales the size of that random window. Higher values reduce collision risk at the cost of added latency. `0` disables the window entirely.
 
@@ -506,7 +551,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `value`: Direct transmit delay factor (0-2)
 
-**Default:** `0.2`
+**Default:** `0.1` when tier is Tier 3
 
 **Note:** Same collision-avoidance random window as `txdelay`, but applied to direct (non-flood, routed) traffic. The default is lower because direct packets are addressed to a specific next hop, so far fewer nodes compete to retransmit them.
 
@@ -520,7 +565,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `value`: Receive delay base (0-20)
 
-**Default:** `0.0`
+**Default:** `3.0` when tier is Tier 3
 
 **Note:** When enabled, repeaters that received a flood packet with a weak signal are held in a delay queue before processing, while those that received it with a strong signal process it immediately. This gives strong-signal paths forwarding priority. By the time weak-signal nodes process their copy, the packet may have already propagated and will be suppressed as a duplicate, reducing redundant retransmissions.
 
@@ -570,10 +615,15 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `get int.thresh`
 - `set int.thresh <value>`
 
-**Parameters:**
-- `value`: Interference threshold value
+**Description:** When non-zero, the radio defers transmitting whenever the instantaneous RSSI exceeds the measured noise floor by this many dB (RSSI-based listen-before-talk). Runs independently of `cad` — either, both, or none may be active.
 
-**Default:** `0.0`
+**Parameters:**
+- `value`:
+  - `0`: disabled (default)
+  - `1`–`254`: fixed threshold in dB above the noise floor
+  - `255` (`auto`): derive the threshold from the current spreading factor (SF7→8, SF8→10, SF9→11, SF10→14, SF11/12→16 dB above the noise floor). Re-evaluated every ~2 s, so runtime SF changes (`tempradio`) and their auto-revert are followed automatically.
+
+**Default:** `0`
 
 ---
 
@@ -1136,5 +1186,27 @@ region save
 **Usage:** `get pwrmgt.bootmv`
 
 **Note:** Returns an error on boards without power management support.
+
+---
+
+### Ethernet (when Ethernet support is compiled in)
+
+Ethernet support is available on RAK4631 boards with a RAK13800 (W5100S) Ethernet module. Use the `_ethernet` firmware variants (e.g. `RAK_4631_repeater_ethernet`) to enable this feature.
+
+---
+
+#### View Ethernet connection status
+**Usage:**
+- `eth.status`
+
+**Output:**
+- `ETH: <ip>:<port>` when connected (e.g. `ETH: 192.168.1.50:23`)
+- `ETH: not connected` when Ethernet is not active
+
+**Notes:**
+- Available on repeater and room server firmware only. Companion radio ethernet firmware does not expose a CLI.
+- The Ethernet interface obtains an IP address via DHCP automatically on boot.
+- A TCP server listens on port 23 (default) for CLI connections.
+- Connect with any TCP client (e.g. `nc`, PuTTY) to access the same CLI available over serial.
 
 ---

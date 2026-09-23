@@ -1,46 +1,76 @@
 {
-	"name": "MeshCore",
-	"image": "mcr.microsoft.com/devcontainers/python:3-bookworm",
+	"name": "MeshCore | Luso Firmware",
+	"image": "mcr.microsoft.com/devcontainers/base:bookworm",
 	"features": {
-		"ghcr.io/devcontainers/features/node:2.1.0": {},
+		"ghcr.io/devcontainers/features/node:2": {
+			"version": "lts"
+		},
+		"ghcr.io/devcontainers/features/python:1": {
+			"version": "3.14"
+		},
 		"ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-			"packages": [ "sudo", "ripgrep" ]
+			"packages": [
+				"imagemagick",
+				"optipng",
+				"ripgrep",
+				"sudo"
+			]
 		}
 	},
 	"runArgs": [
 		"--privileged",
 		"--network=host",
-		"--device=/dev/bus/usb",
-		// arch linux tty* is owned by uucp (986)
+		"--volume=/dev:/dev",
 		"--group-add=986",
-		// debian tty* is owned by dialout (20)
-		"--group-add=20"
+		"--group-add=20",
+		"--env-file",
+		"${localWorkspaceFolder}/.env.dev"
 	],
-	"mounts": [
-	],
-	"postCreateCommand": {
-		"platformio": "pipx install platformio",
-		"opencode": "curl -fsSL https://opencode.ai/install | bash"
-	},
-	"updateContentCommand": {
-		"gsd": "npx --yes @opengsd/gsd-core@latest --opencode --global"
+	"mounts": [],
+	"onCreateCommand": {
+		"claude": "bash -c 'cd .devcontainer && bash claude.sh'",
+		"platformio": "pipx install platformio esptool"
 	},
 	"customizations": {
 		"vscode": {
 			"settings": {
+				"editor.detectIndentation": true,
+				"editor.formatOnPaste": true,
+				"editor.formatOnSave": true,
+				"files.eol": "\n",
+				"files.insertFinalNewline": true,
+				"files.trimFinalNewlines": true,
+				"files.trimTrailingWhitespace": true,
 				"platformio-ide.disablePIOHomeStartup": true,
-				"editor.formatOnSave": false,
+				"remote.autoForwardPorts": false,
 				"workbench.colorCustomizations": {
 					"titleBar.activeBackground": "#0d1a2b",
 					"titleBar.activeForeground": "#ffffff",
 					"titleBar.inactiveBackground": "#0d1a2b99",
 					"titleBar.inactiveForeground": "#ffffff99"
-				}
+				},
+				"[cpp]": {
+					"editor.defaultFormatter": "ms-vscode.cpptools",
+					"editor.formatOnSave": false,
+					"editor.formatOnPaste": false
+				},
+				"[c]": {
+					"editor.defaultFormatter": "ms-vscode.cpptools",
+					"editor.formatOnSave": false,
+					"editor.formatOnPaste": false
+				},
+				"[h]": {
+					"editor.defaultFormatter": "ms-vscode.cpptools",
+					"editor.formatOnSave": false,
+					"editor.formatOnPaste": false
+				},
+				"C_Cpp.clang_format_style": "file"
 			},
 			"extensions": [
-				"platformio.platformio-ide",
+				"Anthropic.claude-code",
 				"github.vscode-github-actions",
-				"GitHub.vscode-pull-request-github"
+				"GitHub.vscode-pull-request-github",
+				"platformio.platformio-ide"
 			],
 			"unwantedRecommendations": [
 				"ms-vscode.cpptools-extension-pack"

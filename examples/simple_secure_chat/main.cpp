@@ -135,7 +135,7 @@ class MyMesh : public BaseChatMesh, ContactVisitor {
     File file = _fs->open("/contacts", "w", true);
 #endif
     if (file) {
-      ContactsIterator iter;
+      ContactsIterator iter = startContactsIterator();
       ContactInfo c;
       uint8_t unused = 0;
       uint32_t reserved = 0;
@@ -526,6 +526,13 @@ public:
     BaseChatMesh::loop();
 
     int len = strlen(command);
+    // `command` must stay NUL-terminated within its bounds. If it ever isn't,
+    // strlen() above can return >= sizeof(command) and the loop below would then
+    // index past the buffer, so clamp defensively.
+    if (len >= (int)sizeof(command)) {
+      command[0] = 0;
+      len = 0;
+    }
     while (Serial.available() && len < sizeof(command)-1) {
       char c = Serial.read();
       if (c != '\n') { 
@@ -534,8 +541,9 @@ public:
       }
       Serial.print(c);
     }
-    if (len == sizeof(command)-1) {  // command buffer full
-      command[sizeof(command)-1] = '\r';
+    if (len == sizeof(command)-1) {  // buffer full: treat as a completed line
+      command[sizeof(command)-2] = '\r';  // place end-of-line marker inside the buffer
+      command[sizeof(command)-1] = 0;     // keep the buffer NUL-terminated
     }
 
     if (len > 0 && command[len - 1] == '\r') {  // received complete line
@@ -559,6 +567,10 @@ void setup() {
   Serial.begin(115200);
 
   board.begin();
+
+#ifdef HAS_EXTERNAL_WATCHDOG
+  external_watchdog.begin();
+#endif
 
   if (!radio_init()) { halt(); }
 
@@ -591,4 +603,7 @@ void setup() {
 void loop() {
   the_mesh.loop();
   rtc_clock.tick();
+#ifdef HAS_EXTERNAL_WATCHDOG
+  external_watchdog.loop();
+#endif
 }

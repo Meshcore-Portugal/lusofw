@@ -36,22 +36,20 @@ public:
 
   template<typename RadioDriverType>
   static void formatPacketStats(char* reply,
-                                RadioDriverType& driver,
-                                uint32_t n_sent_flood,
-                                uint32_t n_sent_direct,
-                                uint32_t n_recv_flood,
-                                uint32_t n_recv_direct,
-                                uint32_t n_expired) {
+                               RadioDriverType& driver,
+                               uint32_t n_sent_flood,
+                               uint32_t n_sent_direct,
+                               uint32_t n_recv_flood,
+                               uint32_t n_recv_direct) {
     sprintf(reply, 
-      "{\"recv\":%u,\"sent\":%u,\"flood_tx\":%u,\"direct_tx\":%u,\"flood_rx\":%u,\"direct_rx\":%u,\"recv_errors\":%u,\"expired\":%u}",
+      "{\"recv\":%u,\"sent\":%u,\"flood_tx\":%u,\"direct_tx\":%u,\"flood_rx\":%u,\"direct_rx\":%u,\"recv_errors\":%u}",
       driver.getPacketsRecv(),
       driver.getPacketsSent(),
       n_sent_flood,
       n_sent_direct,
       n_recv_flood,
       n_recv_direct,
-      driver.getPacketsRecvErrors(),
-      n_expired
+      driver.getPacketsRecvErrors()
     );
   }
 };

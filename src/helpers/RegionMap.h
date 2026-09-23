@@ -10,6 +10,7 @@
 
 #define REGION_DENY_FLOOD   0x01
 #define REGION_DENY_DIRECT  0x02   // reserved for future
+#define REGION_AUTO_ASSIGN  0x80   // used by auto-assign engine to identify dynamic regions
 
 struct RegionEntry {
   uint16_t id;

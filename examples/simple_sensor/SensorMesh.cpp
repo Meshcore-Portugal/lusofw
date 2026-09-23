@@ -1,4 +1,7 @@
 #include "SensorMesh.h"
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
+#include "lusofw/InterferenceAuto.h"   // int.thresh 255 -> derive threshold from current SF
+#endif
 
 /* ------------------------------ Config -------------------------------- */
 
@@ -320,9 +323,13 @@ uint32_t SensorMesh::getDirectRetransmitDelay(const mesh::Packet* packet) {
   uint32_t t = (_radio->getEstAirtimeFor(packet->getPathByteLen() + packet->payload_len + 2) * _prefs.direct_tx_delay_factor);
   return getRNG()->nextInt(0, 6)*t;
 }
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
 int SensorMesh::getInterferenceThreshold() const {
-  return _prefs.interference_threshold;
+  // resolve against the LIVE SF so `tempradio` windows are tracked correctly
+  return InterferenceAuto::resolve(_prefs.interference_threshold,
+                                   radio_driver.getSpreadingFactor());
 }
+#endif
 bool SensorMesh::getCADEnabled() const {
   return _prefs.cad_enabled;
 }
@@ -427,19 +434,19 @@ void SensorMesh::handleCommand(uint32_t sender_timestamp, char* command, char* r
       Serial.printf("\n");
     }
     reply[0] = 0;
-  } else if (memcmp(command, "io ", 2) == 0) { // io {value}: write, io: read 
+  } else if (memcmp(command, "io ", 2) == 0) { // io {value}: write, io: read
     if (command[2] == ' ') { // it's a write
       uint32_t val;
       uint32_t g = board.getGpio();
       if (command[3] == 'r') { // reset bits
         sscanf(&command[4], "%x", &val);
-        val = g & ~val;    
+        val = g & ~val;
       } else if (command[3] == 's') { // set bits
         sscanf(&command[4], "%x", &val);
-        val |= g;    
+        val |= g;
       } else if (command[3] == 't') { // toggle bits
         sscanf(&command[4], "%x", &val);
-        val ^= g;    
+        val ^= g;
       } else { // set value
         sscanf(&command[3], "%x", &val);
       }
@@ -576,7 +583,7 @@ void SensorMesh::onPeerDataRecv(mesh::Packet* packet, uint8_t type, int sender_i
             sendAckTo(*from, ack_hash, packet->getPathHashSize());
           }
         }
-      } else if (flags == TXT_TYPE_CLI_DATA) {  
+      } else if (flags == TXT_TYPE_CLI_DATA) {
         from->last_timestamp = sender_timestamp;
         from->last_activity = getRTCClock()->getCurrentTime();
 
@@ -710,7 +717,6 @@ SensorMesh::SensorMesh(mesh::MainBoard& board, mesh::Radio& radio, mesh::Millise
   set_radio_at = revert_radio_at = 0;
 
   // defaults
-  memset(&_prefs, 0, sizeof(_prefs));
   _prefs.airtime_factor = 1.0;
   _prefs.rx_delay_base =   0.0f;  // turn off by default, was 10.0;
   _prefs.tx_delay_factor = 0.5f;   // was 0.25f
@@ -735,6 +741,8 @@ SensorMesh::SensorMesh(mesh::MainBoard& board, mesh::Radio& radio, mesh::Millise
   _prefs.gps_enabled = 0;
   _prefs.gps_interval = 0;
   _prefs.advert_loc_policy = ADVERT_LOC_PREFS;
+  _prefs.radio_fem_rxgain = 1;
+  _prefs.radio_fem_txgain = 0;
 
   memset(default_scope.key, 0, sizeof(default_scope.key));
 }
@@ -770,6 +778,8 @@ void SensorMesh::begin(FILESYSTEM* fs) {
 
   radio_driver.setParams(_prefs.freq, _prefs.bw, _prefs.sf, _prefs.cr);
   radio_driver.setTxPower(_prefs.tx_power_dbm);
+  board.setLoRaFemLnaEnabled(_prefs.radio_fem_rxgain);
+  board.setLoRaFemPaGainEnabled(_prefs.radio_fem_txgain);
 
   updateAdvertTimer();
   updateFloodAdvertTimer();
@@ -858,8 +868,8 @@ void SensorMesh::formatRadioStatsReply(char *reply) {
 }
 
 void SensorMesh::formatPacketStatsReply(char *reply) {
-  StatsFormatHelper::formatPacketStats(reply, radio_driver, getNumSentFlood(), getNumSentDirect(), 
-                                       getNumRecvFlood(), getNumRecvDirect(), getNumExpired());
+  StatsFormatHelper::formatPacketStats(reply, radio_driver, getNumSentFlood(), getNumSentDirect(),
+                                       getNumRecvFlood(), getNumRecvDirect());
 }
 
 float SensorMesh::getTelemValue(uint8_t channel, uint8_t type) {

@@ -1,4 +1,19 @@
 #include "MyMesh.h"
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
+#include "lusofw/InterferenceAuto.h"   // int.thresh 255 -> derive threshold from current SF
+#endif
+#if defined(LUSOFW_AUTO_REGIONS)
+#include "lusofw/AutoRegions.h"
+#endif
+#if defined(LUSOFW_NETWORK_TIME)
+#include "lusofw/NetTimeSync.h"   // trusted network time sync policy
+#endif
+#if defined(LUSOFW_ADVERT_PROTECT)
+#include "lusofw/AdvertProtection.h"   // repeat remote repeater adverts at most once per 12h
+#endif
+#if defined(LUSOFW_SMART_ADVERTS)
+#include "lusofw/SmartAdverts.h"   // deterministic 23h rolling-window advert slots
+#endif
 #include <algorithm>
 
 /* ------------------------------ Config -------------------------------- */
@@ -157,11 +172,10 @@ uint8_t MyMesh::handleLoginReq(const mesh::Identity& sender, const uint8_t* secr
 uint8_t MyMesh::handleAnonRegionsReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data) {
   if (anon_limiter.allow(rtc_clock.getCurrentTime())) {
     // request data has: {reply-path-len}{reply-path}
-    reply_path_len = *data & 63;
-    reply_path_hash_size = (*data >> 6) + 1;
-    data++;
+    reply_path_len = *data++;
+    if (!mesh::Packet::isValidPathLen(reply_path_len)) return 0;  // reject - bad encoding
 
-    memcpy(reply_path, data, ((uint8_t)reply_path_len) * reply_path_hash_size);
+    mesh::Packet::writePath(reply_path, data, reply_path_len);
     // data += (uint8_t)reply_path_len * reply_path_hash_size;
 
     memcpy(reply_data, &sender_timestamp, 4);   // prefix with sender_timestamp, like a tag
@@ -176,11 +190,10 @@ uint8_t MyMesh::handleAnonRegionsReq(const mesh::Identity& sender, uint32_t send
 uint8_t MyMesh::handleAnonOwnerReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data) {
   if (anon_limiter.allow(rtc_clock.getCurrentTime())) {
     // request data has: {reply-path-len}{reply-path}
-    reply_path_len = *data & 63;
-    reply_path_hash_size = (*data >> 6) + 1;
-    data++;
+    reply_path_len = *data++;
+    if (!mesh::Packet::isValidPathLen(reply_path_len)) return 0;  // reject - bad encoding
 
-    memcpy(reply_path, data, ((uint8_t)reply_path_len) * reply_path_hash_size);
+    mesh::Packet::writePath(reply_path, data, reply_path_len);
     // data += (uint8_t)reply_path_len * reply_path_hash_size;
 
     memcpy(reply_data, &sender_timestamp, 4);   // prefix with sender_timestamp, like a tag
@@ -196,11 +209,10 @@ uint8_t MyMesh::handleAnonOwnerReq(const mesh::Identity& sender, uint32_t sender
 uint8_t MyMesh::handleAnonClockReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data) {
   if (anon_limiter.allow(rtc_clock.getCurrentTime())) {
     // request data has: {reply-path-len}{reply-path}
-    reply_path_len = *data & 63;
-    reply_path_hash_size = (*data >> 6) + 1;
-    data++;
+    reply_path_len = *data++;
+    if (!mesh::Packet::isValidPathLen(reply_path_len)) return 0;  // reject - bad encoding
 
-    memcpy(reply_path, data, ((uint8_t)reply_path_len) * reply_path_hash_size);
+    mesh::Packet::writePath(reply_path, data, reply_path_len);
     // data += (uint8_t)reply_path_len * reply_path_hash_size;
 
     memcpy(reply_data, &sender_timestamp, 4);   // prefix with sender_timestamp, like a tag
@@ -354,7 +366,7 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
       int results_offset = 0;
       uint8_t results_buffer[130];
       for(int index = 0; index < count && index + offset < neighbours_count; index++){
-        
+
         // stop if we can't fit another entry in results
         int entry_size = pubkey_prefix_length + 4 + 1;
         if(results_offset + entry_size > sizeof(results_buffer)){
@@ -425,24 +437,31 @@ bool MyMesh::isLooped(const mesh::Packet* packet, const uint8_t max_counters[]) 
 }
 
 void MyMesh::sendFloodReply(mesh::Packet* packet, unsigned long delay_millis, uint8_t path_hash_size) {
-  if (recv_pkt_region && !recv_pkt_region->isWildcard()) {  // if _request_ packet scope is known, send reply with same scope
-    TransportKey scope;
-    if (region_map.getTransportKeysFor(*recv_pkt_region, &scope, 1) > 0) {
-      sendFloodScoped(scope, packet, delay_millis, path_hash_size);
-    } else {
+  TransportKey req_scope;
+  bool is_wildcard = recv_pkt_region != NULL && recv_pkt_region->isWildcard();
+  bool req_scope_known = recv_pkt_region != NULL && !is_wildcard
+                      && region_map.getTransportKeysFor(*recv_pkt_region, &req_scope, 1) > 0;
+
+  switch (mesh::chooseReplyScope(req_scope_known, is_wildcard, !default_scope.isNull())) {
+    case mesh::REPLY_SCOPE_REQUEST:
+      sendFloodScoped(req_scope, packet, delay_millis, path_hash_size);   // reply with same scope as request
+      break;
+    case mesh::REPLY_SCOPE_DEFAULT:
+      // requester's scope is unknown: DIRECT request (no transport codes), or code matched no Region.
+      // un-scoped would be dropped at hop 0 by repeaters running flood.max.unscoped=0
+      sendFloodScoped(default_scope, packet, delay_millis, path_hash_size);
+      break;
+    case mesh::REPLY_SCOPE_NONE:
       sendFlood(packet, delay_millis, path_hash_size);  // send un-scoped
-    }
-  } else {
-    sendFlood(packet, delay_millis, path_hash_size);  // send un-scoped
+      break;
   }
 }
 
 bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
   if (_prefs.disable_fwd) return false;
-  if (packet->isRouteFlood()) {
-    if (packet->getPathHashCount() >= _prefs.flood_max) return false;
-    if (packet->getRouteType() == ROUTE_TYPE_FLOOD && packet->getPathHashCount() >= _prefs.flood_max_unscoped) return false;
-    if (packet->getPayloadType() == PAYLOAD_TYPE_ADVERT && packet->getPathHashCount() >= _prefs.flood_max_advert) return false;
+  if (packet->isRouteFlood()
+      && mesh::isFloodHopLimitExceeded(packet, _prefs.flood_max, _prefs.flood_max_unscoped, _prefs.flood_max_advert)) {
+    return false;
   }
   if (packet->isRouteFlood() && recv_pkt_region == NULL) {
     MESH_DEBUG_PRINTLN("allowPacketForward: unknown transport code, or wildcard not allowed for FLOOD packet");
@@ -463,77 +482,7 @@ bool MyMesh::allowPacketForward(const mesh::Packet *packet) {
     }
   }
 
-#if 0
-#ifdef DISABLE_LEGACY_ADVERT 
-#define ADVERTS_ALLOWED_START 0  // hours >=
-#define ADVERTS_ALLOWED_END   23 // hours <=
-
-  // Limit flood advert paket forwarding using a probabilistic reduction defined by P(h) = 0.308^(hops-1)
-  // https://github.com/meshcore-dev/MeshCore/issues/1223
-  if (packet->getPayloadType() == PAYLOAD_TYPE_ADVERT && packet->isRouteFlood()) {
-
-    uint32_t now = getRTCClock()->getCurrentTime();
-    DateTime dt = DateTime(now);
-    uint8_t current_hour = dt.hour();
-
-    if (current_hour >= ADVERTS_ALLOWED_START && current_hour <= ADVERTS_ALLOWED_END) {
-      MESH_DEBUG_PRINTLN("Flood advert: within allowed advert window, allowing forward");
-      return true; // Always adverts through during allowed hours
-    }
-
-    // Advert payload structure: [pub_key(32)][timestamp(4)][signature(64)][app_data...]
-    const int app_data_offset = PUB_KEY_SIZE + 4 + SIGNATURE_SIZE; // 32 + 4 + 64 = 100
-
-    // Extract the advert type from app_data (the lower 4 bits of the first byte).
-    uint8_t adv_type = (packet->payload_len > app_data_offset) ? (packet->payload[app_data_offset] & 0x0F) : 0xFF;
-
-    // Reject adverts from repeaters whose pub_key starts with 0x01 (mobile node).
-    if (packet->payload_len > 0 && adv_type == ADV_TYPE_REPEATER && packet->payload[0] == 0x01) {
-      MESH_DEBUG_PRINTLN("Flood advert rejected: pub_key starts with 0x01 for repeater");
-      return false;
-    }
-
-    if (packet->payload_len > app_data_offset && adv_type != ADV_TYPE_NONE && adv_type != ADV_TYPE_CHAT) {
-      // Use local validated value to avoid modifying preferences in packet-forwarding logic
-      float base_value = _prefs.flood_advert_base;
-      if (base_value <= 0.0f || base_value > 1.0f) {
-        MESH_DEBUG_PRINTLN("WARNING: Invalid flood_advert_base=%.3f, using default 0.308",
-                           base_value);
-        base_value = 0.308f;
-      }
-
-      if (packet->path_len == 0) {
-        MESH_DEBUG_PRINTLN("Flood advert: path_len=0, allowing forward");
-        return true; // Always allow zero-hop adverts through
-      }
-
-      double_t roll_dice = (double)rand() / RAND_MAX;
-      double_t forw_prob = pow(base_value, packet->path_len - 1);
-      MESH_DEBUG_PRINTLN("Flood advert filter: path_len=%d, roll=%.3f, prob=%.3f, base=%.3f",
-                         packet->path_len, roll_dice, forw_prob, base_value);
-
-      if (roll_dice > forw_prob) {
-        MESH_DEBUG_PRINTLN("Flood advert REJECTED by probabilistic filter");
-        return false;
-      } else {
-        MESH_DEBUG_PRINTLN("Flood advert ACCEPTED for forwarding");
-      }
-
-    }
-#ifdef MESH_DEBUG
-    else if (packet->payload_len > app_data_offset) {
-      MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: type=%d", adv_type);
-    } else {
-      MESH_DEBUG_PRINTLN("Flood advert filter SKIPPED: payload_len=%d too short (need >%d)",
-                         packet->payload_len, app_data_offset);
-    }
-#endif
-  }
-#endif
-#endif
-
-  // FIXME: Temporary patch to reject flood adverts from repeaters whose pub_key starts with 0x01 (mobile node).
-  // Remove this block when probabilistic flood advert filtering is enabled again.
+  // Reject flood adverts from repeaters whose pub_key starts with 0x01 (mobile node).
   if (packet->getPayloadType() == PAYLOAD_TYPE_ADVERT && packet->isRouteFlood()) {
     // Advert payload structure: [pub_key(32)][timestamp(4)][signature(64)][app_data...]
     const int app_data_offset = PUB_KEY_SIZE + 4 + SIGNATURE_SIZE; // 32 + 4 + 64 = 100
@@ -648,8 +597,7 @@ uint32_t MyMesh::getDirectRetransmitDelay(const mesh::Packet *packet) {
   return getRNG()->nextInt(0, 5*t + 1);
 }
 
-bool MyMesh::filterRecvFloodPacket(mesh::Packet* pkt) {
-  // just try to determine region for packet (apply later in allowPacketForward())
+mesh::DispatcherAction MyMesh::onRecvPacket(mesh::Packet* pkt) {
   if (pkt->getRouteType() == ROUTE_TYPE_TRANSPORT_FLOOD) {
     recv_pkt_region = region_map.findMatch(pkt, REGION_DENY_FLOOD);
   } else if (pkt->getRouteType() == ROUTE_TYPE_FLOOD) {
@@ -661,8 +609,7 @@ bool MyMesh::filterRecvFloodPacket(mesh::Packet* pkt) {
   } else {
     recv_pkt_region = NULL;
   }
-  // do normal processing
-  return false;
+  return Mesh::onRecvPacket(pkt);
 }
 
 void MyMesh::onAnonDataRecv(mesh::Packet *packet, const uint8_t *secret, const mesh::Identity &sender,
@@ -675,7 +622,7 @@ void MyMesh::onAnonDataRecv(mesh::Packet *packet, const uint8_t *secret, const m
     data[len] = 0;  // ensure null terminator
     uint8_t reply_len;
 
-    reply_path_len = -1;
+    reply_path_len = 0xFF;
     if (data[4] == 0 || data[4] >= ' ') {   // is password, ie. a login request
       reply_len = handleLoginReq(sender, secret, timestamp, &data[4], packet->isRouteFlood());
     } else if (data[4] == ANON_REQ_TYPE_REGIONS && packet->isRouteDirect()) {
@@ -690,18 +637,29 @@ void MyMesh::onAnonDataRecv(mesh::Packet *packet, const uint8_t *secret, const m
 
     if (reply_len == 0) return;   // invalid request
 
-    if (packet->isRouteFlood()) {
+    // a DIRECT login can reply via the stored out_path, as onPeerDataRecv() does for REQ
+    ClientInfo* client = acl.getClient(sender.pub_key, PUB_KEY_SIZE);
+    bool have_out_path = client != NULL && client->out_path_len != OUT_PATH_UNKNOWN;
+
+    auto route = mesh::chooseReplyRoute(packet->isRouteFlood(), reply_path_len != 0xFF, have_out_path);
+
+    if (route == mesh::REPLY_ROUTE_PATH_RETURN) {
       // let this sender know path TO here, so they can use sendDirect(), and ALSO encode the response
       mesh::Packet* path = createPathReturn(sender, secret, packet->path, packet->path_len,
                                             PAYLOAD_TYPE_RESPONSE, reply_data, reply_len);
       if (path) sendFloodReply(path, SERVER_RESPONSE_DELAY, packet->getPathHashSize());
-    } else if (reply_path_len < 0) {
-      mesh::Packet* reply = createDatagram(PAYLOAD_TYPE_RESPONSE, sender, secret, reply_data, reply_len);
-      if (reply) sendFloodReply(reply, SERVER_RESPONSE_DELAY, packet->getPathHashSize());
+      return;
+    }
+
+    mesh::Packet* reply = createDatagram(PAYLOAD_TYPE_RESPONSE, sender, secret, reply_data, reply_len);
+    if (reply == NULL) return;
+
+    if (route == mesh::REPLY_ROUTE_DIRECT_SUPPLIED) {
+      sendDirect(reply, reply_path, reply_path_len, SERVER_RESPONSE_DELAY);
+    } else if (route == mesh::REPLY_ROUTE_DIRECT_OUT_PATH) {
+      sendDirect(reply, client->out_path, client->out_path_len, SERVER_RESPONSE_DELAY);
     } else {
-      mesh::Packet* reply = createDatagram(PAYLOAD_TYPE_RESPONSE, sender, secret, reply_data, reply_len);
-      uint8_t path_len = ((reply_path_hash_size - 1) << 6) | (reply_path_len & 63);
-      if (reply) sendDirect(reply, reply_path,  path_len, SERVER_RESPONSE_DELAY);
+      sendFloodReply(reply, SERVER_RESPONSE_DELAY, packet->getPathHashSize());
     }
   }
 }
@@ -737,6 +695,18 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
                           const uint8_t *app_data, size_t app_data_len) {
   mesh::Mesh::onAdvertRecv(packet, id, timestamp, app_data, app_data_len); // chain to super impl
 
+#if defined(LUSOFW_ADVERT_PROTECT)
+  // lusofw: repeat each remote repeater's advert at most once every 12h (see
+  // lusofw/AdvertProtection.h)
+  if (packet->isRouteFlood() && !isShare(packet)) {
+    AdvertDataParser parser(app_data, app_data_len);
+    if (parser.isValid() && parser.getType() == ADV_TYPE_REPEATER
+        && !AdvertProtection::allowRepeaterAdvertRepeat(id, getRTCClock()->getCurrentTime())) {
+      packet->markDoNotRetransmit();   // not repeated; still processed locally below
+    }
+  }
+#endif
+
   // if this a zero hop advert (and not via 'Share'), add it to neighbours
   if (packet->getPathHashCount() == 0 && !isShare(packet)) {
     AdvertDataParser parser(app_data, app_data_len);
@@ -745,65 +715,10 @@ void MyMesh::onAdvertRecv(mesh::Packet *packet, const mesh::Identity &id, uint32
     }
   }
 
-#ifdef ENABLE_NETWORK_TIME
-  // Trusted network time source identity. Only adverts signed by this Ed25519 key are
-  // honoured as a time source. The advert signature (covers pubkey + timestamp +
-  // appdata) authenticates the packet, but cannot by itself stop REPLAY of a
-  // previously captured, validly-signed advert -- that is handled below.
-  static const uint8_t NETWORK_TIME_IDENTITY[PUB_KEY_SIZE] = {
-    0x01, 0xB2, 0xF5, 0xDA, 0x46, 0xBC, 0x0A, 0x9C, 0x67, 0xFB, 0x8E, 0xDC, 0x36, 0x62, 0x57, 0xB6,
-    0x04, 0x52, 0x73, 0xB8, 0x9F, 0x37, 0xF3, 0x08, 0x04, 0x4A, 0xD5, 0x57, 0x17, 0x34, 0xD4, 0x62
-  };
-
-  // Reject implausible timestamps (anything before year 2026 = 1767225600) and
-  // only trust time sources heard within 8 hops (limits propagation skew/abuse).
-  if (timestamp >= 1767225600 && packet->path_len < 8) {
-    AdvertDataParser parser(app_data, app_data_len);
-    if (parser.isValid() && parser.getType() == ADV_TYPE_NONE) {
-      if (memcmp(id.pub_key, NETWORK_TIME_IDENTITY, PUB_KEY_SIZE) == 0) {
-
-        // --- Anti-replay: only accept timestamps strictly newer than the last
-        // one we ACCEPTED this boot. A captured advert re-broadcast later still
-        // carries an old (<=) timestamp and is dropped here. last_network_sync_time
-        // is RAM-only; cross-reboot safety comes from the initial-sync forward-only
-        // rule below together with the battery-backed RTC (an old replayed ts is
-        // < the preserved RTC time and so fails the forward check after reboot).
-        if (last_network_sync_time != 0 && timestamp <= last_network_sync_time) {
-          MESH_DEBUG_PRINTLN("Network time: REPLAY rejected (ts=%u <= last=%u)",
-                             timestamp, last_network_sync_time);
-        } else {
-          uint32_t now = getRTCClock()->getCurrentTime();
-          int32_t diff = (int32_t)timestamp - (int32_t)now;
-
-          // INITIAL sync = RTC not yet set (before 2026) OR no network time sync
-          // accepted yet this boot. MAINTENANCE sync = already synced.
-          //   - INITIAL    : accept any unlimited FORWARD jump (diff > 0) only.
-          //                  Rejecting backward jumps closes the replay/winding
-          //                  hole that allowed rolling the clock back in time.
-          //   - MAINTENANCE: allow only a small +/-60s correction (matches the
-          //                  CHANGELOG). A synced RTC should only drift by
-          //                  seconds; large jumps here are treated as suspicious.
-          bool initial = (now < 1767225600) || (last_network_sync_time == 0);
-          bool apply = initial ? (diff > 0) : (diff >= -60 && diff <= 60);
-
-          if (apply) {
-            getRTCClock()->setCurrentTime(timestamp);
-            last_network_sync_time = timestamp;  // advance high-water mark (accepted)
-            DateTime dt = DateTime(timestamp);
-            MESH_DEBUG_PRINTLN("Network time: %s apply, diff=%d sec -> %02d:%02d:%02d %d/%d/%d",
-                               initial ? "INITIAL" : "maintenance", diff,
-                               dt.hour(), dt.minute(), dt.second(), dt.day(), dt.month(), dt.year());
-            updateFloodAdvertTimer();  // reschedule smart advert against new clock (cf. name change)
-          } else {
-            MESH_DEBUG_PRINTLN("Network time: %s rejected (diff=%d sec)",
-                               initial ? "initial(not-forward)" : "maintenance(outside +/-60)", diff);
-          }
-        }
-      } else {
-        MESH_DEBUG_PRINTLN("Network time: invalid ID [%02X%02X], ignoring timestamp", id.pub_key[0],
-                           id.pub_key[1]);
-      }
-    }
+#ifdef LUSOFW_NETWORK_TIME
+  if (NetTimeSync::handleTimekeeperAdvert(id, timestamp, app_data, app_data_len,
+                                          packet->getPathHashCount(), *getRTCClock())) {
+    updateFloodAdvertTimer();  // reschedule smart advert against new clock (cf. name change)
   }
 #endif
 }
@@ -941,7 +856,7 @@ void MyMesh::onControlDataRecv(mesh::Packet *packet) {
 
   uint8_t type = packet->payload[0] & 0xF0; // just test upper 4 bits
 
-#if !defined(ENABLE_STEALTH_MODE)
+#if !defined(LUSOFW_STEALTH_MODE)
   if (type == CTL_TYPE_NODE_DISCOVER_REQ && packet->payload_len >= 6 && !_prefs.disable_fwd &&
       discover_limiter.allow(rtc_clock.getCurrentTime())) {
     int i = 1;
@@ -1034,9 +949,7 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 {
   last_millis = 0;
   uptime_millis = 0;
-  
-  adverts_sent = 0;
-  last_network_sync_time = 0;  // no network time sync accepted yet this boot
+
   next_advert_check = futureMillis(30000);
   next_local_advert = next_flood_advert = 0;
 
@@ -1044,13 +957,13 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   set_radio_at = revert_radio_at = 0;
   _logging = false;
   region_load_active = false;
+  recv_pkt_region = NULL;
 
 #if MAX_NEIGHBOURS
       memset(neighbours, 0, sizeof(neighbours));
 #endif
 
   // defaults
-  memset(&_prefs, 0, sizeof(_prefs));
   _prefs.airtime_factor = 1.0;
   _prefs.rx_delay_base = 0.0f;          // turn off by default, was 10.0;
   _prefs.tx_delay_factor = 0.5f;        // was 0.25f
@@ -1095,6 +1008,8 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   _prefs.rx_boosted_gain = 1; // enabled by default;
 #endif
 #endif
+  _prefs.radio_fem_rxgain = 1;
+  _prefs.radio_fem_txgain = 0;
 
   pending_discover_tag = 0;
   pending_discover_until = 0;
@@ -1108,19 +1023,36 @@ void MyMesh::begin(FILESYSTEM *fs) {
   // load persisted prefs
   _cli.loadPrefs(_fs);
 
+  if (_prefs.role > 3) {
+    RepeaterRole::apply(_prefs, 3);
+  }
+
   char oldVersion[32];
   LusoDefaults::readVersion(_fs, oldVersion, sizeof(oldVersion));
-  if (strcmp(oldVersion, LUSOFW_FIRMWARE_VERSION) != 0) {
-    LusoDefaults::applyDefaults(_prefs);
-    _cli.savePrefs(_fs);
-    LusoDefaults::writeVersion(_fs, LUSOFW_FIRMWARE_VERSION);
-    delay(1000);
-    board.reboot();  // doesn't return
+  if (strcmp(oldVersion, FIRMWARE_VERSION) != 0) {
+    // applyDefaults loads/saves the region map itself when a migration fires.
+    // A blocked migration returns false: the version is not stamped and the
+    // node boots normally, so the migration retries on the next boot (the CLI
+    // stays reachable to clear the blocker) instead of being silently
+    // consumed by the version stamp.
+    if (LusoDefaults::applyDefaults(_prefs, region_map, _fs, oldVersion)) {
+      _cli.savePrefs(_fs);
+      LusoDefaults::writeVersion(_fs, FIRMWARE_VERSION);
+      delay(1000);
+      board.reboot();  // doesn't return
+    }
   }
 
   acl.load(_fs, self_id);
   // TODO: key_store.begin();
-  region_map.load(_fs);
+  if (!region_map.load(_fs) && _fs->exists("/regions2")) {
+    // A missing file is the normal fresh-install case (Defaults treats it as
+    // benign); only a file that exists but will not load whole is a problem.
+    // A partial read (eg. power loss during save) still yields the entries
+    // read so far; the auto-assign engine rebuilds its own entries on the
+    // first evaluation, but user regions lost to the truncation stay lost.
+    MESH_DEBUG_PRINTLN("%s MyMesh::begin(): /regions2 unreadable (truncated or corrupt); continuing with a partial map", getLogDateTime());
+  }
 
   // establish default-scope
   {
@@ -1128,6 +1060,11 @@ void MyMesh::begin(FILESYSTEM *fs) {
     if (r) {
       region_map.getTransportKeysFor(*r, &default_scope, 1);
     } else {
+      // TODO: only define DEFAULT_FLOOD_SCOPE_NAME on the next iteration of the
+      // network, once critical mass has already migrated to having scopes.
+      // Until then, repeaters that cannot match the scope's transport code
+      // refuse to forward it, and flood packets die at the first un-migrated
+      // hop instead of travelling far enough.
 #ifdef DEFAULT_FLOOD_SCOPE_NAME
       r = region_map.findByName(DEFAULT_FLOOD_SCOPE_NAME);
       if (r == NULL) {
@@ -1142,16 +1079,10 @@ void MyMesh::begin(FILESYSTEM *fs) {
     }
   }
 
-  // Ensure default region exists and allow flood
-  auto region = region_map.findByName("#portugal");
-
-  if (!region) {
-    region = region_map.putRegion("#portugal", region_map.getWildcard().id);
-  }
-  
-  if (region) {
-    region->flags &= ~REGION_DENY_FLOOD; // Always clear the deny flood flag to allow flooding
-  }
+#if defined(LUSOFW_AUTO_REGIONS)
+  // Evaluate and assign initial geographical regions based on GPS coordinates
+  AutoRegions::checkRegionAutoAssign(region_map, _prefs, _fs);
+#endif
 
 #if defined(WITH_BRIDGE)
   if (_prefs.bridge_enabled) {
@@ -1165,8 +1096,10 @@ void MyMesh::begin(FILESYSTEM *fs) {
   radio_driver.setRxBoostedGainMode(_prefs.rx_boosted_gain);
   MESH_DEBUG_PRINTLN("RX Boosted Gain Mode: %s",
                      radio_driver.getRxBoostedGainMode() ? "Enabled" : "Disabled");
+  board.setLoRaFemLnaEnabled(_prefs.radio_fem_rxgain);
+  board.setLoRaFemPaGainEnabled(_prefs.radio_fem_txgain);
 
-#ifndef DISABLE_LEGACY_ADVERT
+#ifndef LUSOFW_SMART_ADVERTS
   updateAdvertTimer();
   updateFloodAdvertTimer();
 #endif
@@ -1190,6 +1123,11 @@ void MyMesh::sendFloodScoped(const TransportKey& scope, mesh::Packet* pkt, uint3
 }
 
 void MyMesh::applyTempRadioParams(float freq, float bw, uint8_t sf, uint8_t cr, int timeout_mins) {
+  // futureMillis() takes an int: 2000 + mins*60000 overflows it above 35,791
+  // minutes, which would wrap the revert time into the past and collapse the
+  // window to the 2 s apply delay. Saturate at the largest int-safe window.
+  if (timeout_mins > 35791) timeout_mins = 35791;
+
   set_radio_at = futureMillis(2000); // give CLI reply some time to be sent back, before applying temp radio params
   pending_freq = freq;
   pending_bw = bw;
@@ -1226,7 +1164,7 @@ void MyMesh::sendSelfAdvertisement(int delay_millis, bool flood) {
 }
 
 void MyMesh::updateAdvertTimer() {
-#ifndef DISABLE_LEGACY_ADVERT
+#ifndef LUSOFW_SMART_ADVERTS
   if (_prefs.advert_interval > 0) { // schedule local advert timer
     next_local_advert = futureMillis(((uint32_t)_prefs.advert_interval) * 2 * 60 * 1000);
   } else {
@@ -1234,72 +1172,39 @@ void MyMesh::updateAdvertTimer() {
   }
 #else
   next_local_advert = 0; // stop the timer
-  MESH_DEBUG_PRINTLN("Local advert timer disabled (DISABLE_LEGACY_ADVERT mode)");
+  MESH_DEBUG_PRINTLN("Local advert timer disabled (LUSOFW_SMART_ADVERTS mode)");
 #endif
 }
 
 void MyMesh::updateFloodAdvertTimer() {
-#ifndef DISABLE_LEGACY_ADVERT
+#ifndef LUSOFW_SMART_ADVERTS
   if (_prefs.flood_advert_interval > 0) { // schedule flood advert timer
     next_flood_advert = futureMillis((uint32_t)(_prefs.flood_advert_interval) * 60 * 60 * 1000);
   } else {
     next_flood_advert = 0; // stop the timer
   }
-#else
-  const uint32_t WINDOW_SIZE_SECONDS = 23 * 3600; // 23 hours (Rolling Window)
-  const int32_t JITTER_MAX_SECONDS = 3; // 3 seconds Jitter to prevent advert collisions
-
-  // Calculate a deterministic hash using the native SHA256 utility.
-  // This ensures the hash is uniform and unique per node based on its name and public key.
-  uint32_t hash = 0;
-  const char* name = _prefs.node_name ? _prefs.node_name : "";
-
-  mesh::Utils::sha256((uint8_t*)&hash, sizeof(hash), (const uint8_t*)name, strlen(name), self_id.pub_key, 4);
-
-  uint32_t my_offset = hash % WINDOW_SIZE_SECONDS;
-  uint32_t now_epoch = getRTCClock()->getCurrentTime();
-
-  // If there is no RTC (timestamp is older than Jan 1, 2020), we rely on millis() + offset + jitter
-  if (now_epoch < 1577836800) {
-      // Use uptime millis to give dynamic jitter across reboots when no RTC is present
-      int32_t random_jitter = ((hash ^ millis()) % 7) - 3;
-      uint32_t fallback_wait = my_offset + random_jitter;
-      // Prevent underflow
-      if ((int32_t)fallback_wait < 0) {
-          fallback_wait = 0;
-      }
-      next_flood_advert = futureMillis(fallback_wait * 1000);
-  } else {
-      // If we have an RTC, schedule for the next occurrence in the global calendar
-      uint32_t current_cycle_start = now_epoch - (now_epoch % WINDOW_SIZE_SECONDS);
-      uint32_t my_target_epoch = current_cycle_start + my_offset;
-      int32_t random_jitter = ((hash ^ current_cycle_start) % ((JITTER_MAX_SECONDS * 2) + 1)) - JITTER_MAX_SECONDS;
-      int64_t target_epoch = (int64_t)my_target_epoch + random_jitter;
-      
-      // If the calculated target for the current cycle is already in the past or exactly right now,
-      // we must advance to the next cycle to avoid firing multiple times in a row!
-      if ((int64_t)now_epoch >= target_epoch) {
-          current_cycle_start += WINDOW_SIZE_SECONDS;
-          my_target_epoch = current_cycle_start + my_offset;
-          
-          // Re-calculate jitter for the new cycle!
-          random_jitter = ((hash ^ current_cycle_start) % ((JITTER_MAX_SECONDS * 2) + 1)) - JITTER_MAX_SECONDS;
-          target_epoch = (int64_t)my_target_epoch + random_jitter;
-      }
-      
-      // We are now guaranteed that target_epoch is strictly greater than now_epoch
-      uint32_t wait_seconds = (uint32_t)(target_epoch - (int64_t)now_epoch);
-      DateTime dt_target((uint32_t)target_epoch);
-
-      MESH_DEBUG_PRINTLN(
-          "%s Next smart advert will be at %04d-%02d-%02d %02d:%02d:%02d (in %d seconds)",
-          getLogDateTime(), 
-          dt_target.year(), dt_target.month(), dt_target.day(), 
-          dt_target.hour(), dt_target.minute(), dt_target.second(),
-          wait_seconds);
-
-      next_flood_advert = futureMillis(wait_seconds * 1000);
+#else  // LUSOFW_SMART_ADVERTS
+  if (_prefs.flood_advert_interval == 0) {
+    next_flood_advert = 0; // stop the timer
+    return;
   }
+
+  const uint32_t now_epoch = getRTCClock()->getCurrentTime();
+  const uint32_t wait_seconds = SmartAdverts::nextAdvertWaitSeconds(
+      _prefs.node_name, self_id.pub_key, now_epoch, millis());
+
+  if (now_epoch >= SmartAdverts::MIN_VALID_EPOCH) {  // RTC present: log the calendar slot
+    DateTime dt_target(now_epoch + wait_seconds);
+
+    MESH_DEBUG_PRINTLN(
+        "%s Next smart advert will be at %04d-%02d-%02d %02d:%02d:%02d (in %d seconds)",
+        getLogDateTime(),
+        dt_target.year(), dt_target.month(), dt_target.day(),
+        dt_target.hour(), dt_target.minute(), dt_target.second(),
+        wait_seconds);
+  }
+
+  next_flood_advert = futureMillis(wait_seconds * 1000);
 #endif
 }
 
@@ -1323,9 +1228,21 @@ void MyMesh::setTxPower(int8_t power_dbm) {
   radio_driver.setTxPower(power_dbm);
 }
 
-#if defined(USE_SX1262) || defined(USE_SX1268)
-void MyMesh::setRxBoostedGain(bool enable) {
-  radio_driver.setRxBoostedGainMode(enable);
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
+int MyMesh::getInterferenceThreshold() const {
+  // resolve against the LIVE SF so `tempradio` windows are tracked correctly
+  return InterferenceAuto::resolve(_prefs.interference_threshold,
+                                   radio_driver.getSpreadingFactor());
+}
+#endif
+
+bool MyMesh::setRxBoostedGain(bool enable) {
+  return radio_driver.setRxBoostedGainMode(enable);
+}
+
+#if defined(USE_LR2021)
+bool MyMesh::configSideDetectors(const uint8_t sideDetSFs[], uint8_t num, float bw) {
+  return radio_driver.configSideDetectors(sideDetSFs, num, bw);
 }
 #endif
 
@@ -1403,6 +1320,19 @@ void MyMesh::onDefaultRegionChanged(const RegionEntry* r) {
   }
 }
 
+void MyMesh::onNodeConfigChanged() {
+#if defined(LUSOFW_AUTO_REGIONS)
+  // Re-evaluate and reassign geographical regions based on the new name/coordinates
+  // (manual radio commands latch prefs.radio_manual themselves in CommonCLI)
+  AutoRegions::checkRegionAutoAssign(region_map, _prefs, _fs);
+  // The re-evaluation may have re-derived tx power — apply it to the radio,
+  // unless a temp-radio window is open (its apply/revert timers own tx power)
+  if (!revert_radio_at) {
+    radio_driver.setTxPower(_prefs.tx_power_dbm);
+  }
+#endif
+}
+
 void MyMesh::formatStatsReply(char *reply) {
   StatsFormatHelper::formatCoreStats(reply, board, *_ms, _err_flags, _mgr);
 }
@@ -1412,8 +1342,8 @@ void MyMesh::formatRadioStatsReply(char *reply) {
 }
 
 void MyMesh::formatPacketStatsReply(char *reply) {
-  StatsFormatHelper::formatPacketStats(reply, radio_driver, getNumSentFlood(), getNumSentDirect(), 
-                                       getNumRecvFlood(), getNumRecvDirect(), getNumExpired());
+  StatsFormatHelper::formatPacketStats(reply, radio_driver, getNumSentFlood(), getNumSentDirect(),
+                                       getNumRecvFlood(), getNumRecvDirect());
 }
 
 void MyMesh::saveIdentity(const mesh::LocalIdentity &new_id) {
@@ -1533,7 +1463,7 @@ void MyMesh::loop() {
 
   mesh::Mesh::loop();
 
-#ifndef DISABLE_LEGACY_ADVERT
+#ifndef LUSOFW_SMART_ADVERTS
   if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
     uint32_t delay_millis = 0;
@@ -1547,22 +1477,33 @@ void MyMesh::loop() {
 
     updateAdvertTimer(); // schedule next local advert
   }
-#else
+#else  // LUSOFW_SMART_ADVERTS
+  // Periodic scheduler for legacy advertisements.
+  // This runs at most once per second so we do not repeatedly evaluate timers
+  // on every loop iteration.
   if (next_advert_check && millisHasNowPassed(next_advert_check)) {
-    next_advert_check = futureMillis(1 * 1000); // check every 1 second
+    next_advert_check = futureMillis(1000);
 
+    // Flood advertisements are optional and controlled by user preferences.
     if (_prefs.flood_advert_interval > 0) {
       if (next_flood_advert == 0) {
-          updateFloodAdvertTimer();
-      } else if (next_flood_advert && millisHasNowPassed(next_flood_advert)) {
-        MESH_DEBUG_PRINTLN("%s MyMesh::loop(): Sending flood advert", getLogDateTime());
+        // If no flood advert is currently scheduled, schedule one now.
+        updateFloodAdvertTimer();
+      } else if (millisHasNowPassed(next_flood_advert)) {
+        // The scheduled time has arrived: create and send the self-advertisement.
         mesh::Packet *pkt = createSelfAdvert();
-        if (pkt) sendFlood(pkt);
+        uint32_t delay_millis = 0;
+        if (pkt) {
+          sendFloodScoped(default_scope, pkt, delay_millis, _prefs.path_hash_mode + 1);
+        }
+
+        // Clear the timer so the next scheduler pass can create a fresh one.
         next_flood_advert = 0;
+        MESH_DEBUG_PRINTLN("%s MyMesh::loop(): Sent flood advert", getLogDateTime());
       }
 
-      // checks if flood adverts are disabled, or if we already have one scheduled, before scheduling next one
-      if (next_flood_advert == 0 && _prefs.flood_advert_interval > 0) {
+      // If the timer has been consumed or was never set, arm the next advert.
+      if (next_flood_advert == 0) {
         updateFloodAdvertTimer();
       }
     }
@@ -1572,12 +1513,21 @@ void MyMesh::loop() {
   if (set_radio_at && millisHasNowPassed(set_radio_at)) { // apply pending (temporary) radio params
     set_radio_at = 0;                                     // clear timer
     radio_driver.setParams(pending_freq, pending_bw, pending_sf, pending_cr);
+#if defined(LUSOFW_AUTO_REGIONS)
+    // Re-derive tx power for the temporary frequency (e.g. 14 dBm sub-bands)
+    AutoRegions::applyRadioRegulation(_prefs, pending_freq);
+    radio_driver.setTxPower(_prefs.tx_power_dbm);
+#endif
     MESH_DEBUG_PRINTLN("Temp radio params");
   }
 
   if (revert_radio_at && millisHasNowPassed(revert_radio_at)) { // revert radio params to orig
     revert_radio_at = 0;                                        // clear timer
     radio_driver.setParams(_prefs.freq, _prefs.bw, _prefs.sf, _prefs.cr);
+#if defined(LUSOFW_AUTO_REGIONS)
+    AutoRegions::applyRadioRegulation(_prefs, _prefs.freq);
+    radio_driver.setTxPower(_prefs.tx_power_dbm);
+#endif
     MESH_DEBUG_PRINTLN("Radio params restored");
   }
 

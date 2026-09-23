@@ -2,6 +2,7 @@
 #include "CommonCLI.h"
 #include "TxtDataHelpers.h"
 #include "AdvertDataHelpers.h"
+#include <lusofw/RepeaterRole.h>
 #include "TxtDataHelpers.h"
 #include <RTClib.h>
 
@@ -28,16 +29,25 @@ static bool isValidName(const char *n) {
 }
 
 void CommonCLI::loadPrefs(FILESYSTEM* fs) {
-  if (fs->exists("/com_prefs")) {
-    loadPrefsInt(fs, "/com_prefs");   // new filename
-  } else if (fs->exists("/node_prefs")) {
-    loadPrefsInt(fs, "/node_prefs");
-    savePrefs(fs);  // save to new filename
-    fs->remove("/node_prefs");  // remove old
+  if (fs->exists("/prefs.json")) {
+#if defined(RP2040_PLATFORM)
+    File file = fs->open("/prefs.json", "r");
+#else
+    File file = fs->open("/prefs.json");
+#endif
+    if (file) {
+      _prefs->loadSerial(file);   // new Serial prefs
+      file.close();
+    }
+  } else if (fs->exists("/com_prefs")) {
+    loadPrefsInt(fs, "/com_prefs");
+    if (savePrefs(fs)) {  // save to new Serial prefs
+  //    fs->remove("/com_prefs");  // remove old
+    }
   }
 }
 
-void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
+void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {  // Legacy prefs loader
 #if defined(RP2040_PLATFORM)
   File file = fs->open(filename, "r");
 #else
@@ -61,7 +71,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->tx_delay_factor, sizeof(_prefs->tx_delay_factor));  // 84
     file.read((uint8_t *)&_prefs->guest_password[0], sizeof(_prefs->guest_password)); // 88
     file.read((uint8_t *)&_prefs->direct_tx_delay_factor, sizeof(_prefs->direct_tx_delay_factor)); // 104
-    file.read((uint8_t *)&_prefs->flood_advert_base, sizeof(_prefs->flood_advert_base));           // 108
+    file.read(pad, 4);                                                                             // 108
     file.read((uint8_t *)&_prefs->sf, sizeof(_prefs->sf));                                         // 112
     file.read((uint8_t *)&_prefs->cr, sizeof(_prefs->cr));                                         // 113
     file.read((uint8_t *)&_prefs->allow_read_only, sizeof(_prefs->allow_read_only));               // 114
@@ -91,7 +101,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->rx_boosted_gain, sizeof(_prefs->rx_boosted_gain));               // 290
     file.read((uint8_t *)&_prefs->flood_max_unscoped, sizeof(_prefs->flood_max_unscoped));         // 291
     file.read((uint8_t *)&_prefs->flood_max_advert, sizeof(_prefs->flood_max_advert));             // 292
-    file.read(pad, 1);                                                                             // 293
+    file.read((uint8_t *)&_prefs->radio_fem_rxgain, sizeof(_prefs->radio_fem_rxgain));             // 293
     file.read((uint8_t *)&_prefs->cad_enabled, sizeof(_prefs->cad_enabled));                       // 294
     // next: 295
 
@@ -123,76 +133,29 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
 
     // sanitise settings
     _prefs->rx_boosted_gain = constrain(_prefs->rx_boosted_gain, 0, 1); // boolean
+    _prefs->radio_fem_rxgain = constrain(_prefs->radio_fem_rxgain, 0, 1); // boolean
+    _prefs->radio_fem_txgain = constrain(_prefs->radio_fem_txgain, 0, 1); // boolean
     _prefs->cad_enabled = constrain(_prefs->cad_enabled, 0, 1); // boolean
 
     file.close();
   }
 }
 
-void CommonCLI::savePrefs(FILESYSTEM* fs) {
+bool CommonCLI::savePrefs(FILESYSTEM* fs) {
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
-  fs->remove("/com_prefs");
-  File file = fs->open("/com_prefs", FILE_O_WRITE);
+  fs->remove("/prefs.json");
+  File file = fs->open("/prefs.json", FILE_O_WRITE);
 #elif defined(RP2040_PLATFORM)
-  File file = fs->open("/com_prefs", "w");
+  File file = fs->open("/prefs.json", "w");
 #else
-  File file = fs->open("/com_prefs", "w", true);
+  File file = fs->open("/prefs.json", "w", true);
 #endif
   if (file) {
-    uint8_t pad[8];
-    memset(pad, 0, sizeof(pad));
-
-    file.write((uint8_t *)&_prefs->airtime_factor, sizeof(_prefs->airtime_factor));    // 0
-    file.write((uint8_t *)&_prefs->node_name, sizeof(_prefs->node_name));              // 4
-    file.write(pad, 4);                                                                // 36
-    file.write((uint8_t *)&_prefs->node_lat, sizeof(_prefs->node_lat));                // 40
-    file.write((uint8_t *)&_prefs->node_lon, sizeof(_prefs->node_lon));                // 48
-    file.write((uint8_t *)&_prefs->password[0], sizeof(_prefs->password));             // 56
-    file.write((uint8_t *)&_prefs->freq, sizeof(_prefs->freq));                        // 72
-    file.write((uint8_t *)&_prefs->tx_power_dbm, sizeof(_prefs->tx_power_dbm));        // 76
-    file.write((uint8_t *)&_prefs->disable_fwd, sizeof(_prefs->disable_fwd));          // 77
-    file.write((uint8_t *)&_prefs->advert_interval, sizeof(_prefs->advert_interval));  // 78
-    file.write(pad, 1);                                                                // 79 : 1 byte unused (rx_boosted_gain moved to end)
-    file.write((uint8_t *)&_prefs->rx_delay_base, sizeof(_prefs->rx_delay_base));      // 80
-    file.write((uint8_t *)&_prefs->tx_delay_factor, sizeof(_prefs->tx_delay_factor));  // 84
-    file.write((uint8_t *)&_prefs->guest_password[0], sizeof(_prefs->guest_password)); // 88
-    file.write((uint8_t *)&_prefs->direct_tx_delay_factor, sizeof(_prefs->direct_tx_delay_factor)); // 104
-    file.write((uint8_t *)&_prefs->flood_advert_base, sizeof(_prefs->flood_advert_base));           // 108
-    file.write((uint8_t *)&_prefs->sf, sizeof(_prefs->sf));                                         // 112
-    file.write((uint8_t *)&_prefs->cr, sizeof(_prefs->cr));                                         // 113
-    file.write((uint8_t *)&_prefs->allow_read_only, sizeof(_prefs->allow_read_only));               // 114
-    file.write((uint8_t *)&_prefs->multi_acks, sizeof(_prefs->multi_acks));                         // 115
-    file.write((uint8_t *)&_prefs->bw, sizeof(_prefs->bw));                                         // 116
-    file.write((uint8_t *)&_prefs->agc_reset_interval, sizeof(_prefs->agc_reset_interval));         // 120
-    file.write((uint8_t *)&_prefs->path_hash_mode, sizeof(_prefs->path_hash_mode));                 // 121
-    file.write((uint8_t *)&_prefs->loop_detect, sizeof(_prefs->loop_detect));                       // 122
-    file.write(pad, 1);                                                                             // 123
-    file.write((uint8_t *)&_prefs->flood_max, sizeof(_prefs->flood_max));                           // 124
-    file.write((uint8_t *)&_prefs->flood_advert_interval, sizeof(_prefs->flood_advert_interval));   // 125
-    file.write((uint8_t *)&_prefs->interference_threshold, sizeof(_prefs->interference_threshold)); // 126
-    file.write((uint8_t *)&_prefs->bridge_enabled, sizeof(_prefs->bridge_enabled));                 // 127
-    file.write((uint8_t *)&_prefs->bridge_delay, sizeof(_prefs->bridge_delay));                     // 128
-    file.write((uint8_t *)&_prefs->bridge_pkt_src, sizeof(_prefs->bridge_pkt_src));                 // 130
-    file.write((uint8_t *)&_prefs->bridge_baud, sizeof(_prefs->bridge_baud));                       // 131
-    file.write((uint8_t *)&_prefs->bridge_channel, sizeof(_prefs->bridge_channel));                 // 135
-    file.write((uint8_t *)&_prefs->bridge_secret, sizeof(_prefs->bridge_secret));                   // 136
-    file.write((uint8_t *)&_prefs->powersaving_enabled, sizeof(_prefs->powersaving_enabled));       // 152
-    file.write(pad, 3);                                                                             // 153
-    file.write((uint8_t *)&_prefs->gps_enabled, sizeof(_prefs->gps_enabled));                       // 156
-    file.write((uint8_t *)&_prefs->gps_interval, sizeof(_prefs->gps_interval));                     // 157
-    file.write((uint8_t *)&_prefs->advert_loc_policy, sizeof(_prefs->advert_loc_policy));           // 161
-    file.write((uint8_t *)&_prefs->discovery_mod_timestamp, sizeof(_prefs->discovery_mod_timestamp)); // 162
-    file.write((uint8_t *)&_prefs->adc_multiplier, sizeof(_prefs->adc_multiplier));                 // 166
-    file.write((uint8_t *)_prefs->owner_info, sizeof(_prefs->owner_info));                          // 170
-    file.write((uint8_t *)&_prefs->rx_boosted_gain, sizeof(_prefs->rx_boosted_gain));               // 290
-    file.write((uint8_t *)&_prefs->flood_max_unscoped, sizeof(_prefs->flood_max_unscoped));         // 291
-    file.write((uint8_t *)&_prefs->flood_max_advert, sizeof(_prefs->flood_max_advert));             // 292
-    file.write(pad, 1);                                                                             // 293
-    file.write((uint8_t *)&_prefs->cad_enabled, sizeof(_prefs->cad_enabled));                       // 294
-    // next: 295
-
+    bool success = _prefs->saveSerial(file);
     file.close();
+    return success;
   }
+  return false;
 }
 
 #define MIN_LOCAL_ADVERT_INTERVAL   60
@@ -240,6 +203,9 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
       _callbacks->sendSelfAdvertisement(1500, true);  // longer delay, give CLI response time to be sent first
       strcpy(reply, "OK - Advert sent");
     } else if (memcmp(command, "clock sync", 10) == 0) {
+      // Clock set without updateFloodAdvertTimer(): a smart advert timer armed
+      // on the uptime fallback keeps its uptime-based arm time, so this node
+      // can miss its calendar slot for up to one window after a manual set.
       uint32_t curr = getRTCClock()->getCurrentTime();
       if (sender_timestamp > curr) {
         getRTCClock()->setCurrentTime(sender_timestamp + 1);
@@ -258,6 +224,9 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
       DateTime dt = DateTime(now);
       sprintf(reply, "%02d:%02d - %d/%d/%d UTC", dt.hour(), dt.minute(), dt.day(), dt.month(), dt.year());
     } else if (memcmp(command, "time ", 5) == 0) {  // set time (to epoch seconds)
+      // As with "clock sync" above: no updateFloodAdvertTimer(), so a smart
+      // advert timer armed on the uptime fallback can miss its calendar slot
+      // for up to one window after this.
       uint32_t secs = _atoi(&command[5]);
       uint32_t curr = getRTCClock()->getCurrentTime();
       if (secs > curr) {
@@ -282,7 +251,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
         strcpy(reply, "ERR: bad pubkey");
       }
     } else if (memcmp(command, "tempradio ", 10) == 0) {
-      strcpy(tmp, &command[10]);
+      StrHelper::strncpy(tmp, &command[10], sizeof(tmp));
       const char *parts[5];
       int num = mesh::Utils::parseTextParts(tmp, parts, 5);
       float freq  = num > 0 ? strtof(parts[0], nullptr) : 0.0f;
@@ -325,7 +294,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
         strcpy(reply, "null");
       }
     } else if (memcmp(command, "sensor set ", 11) == 0) {
-      strcpy(tmp, &command[11]);
+      StrHelper::strncpy(tmp, &command[11], sizeof(tmp));
       const char *parts[2];
       int num = mesh::Utils::parseTextParts(tmp, parts, 2, ' ');
       const char *key = (num > 0) ? parts[0] : "";
@@ -391,6 +360,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
       _prefs->node_lat = _sensors->node_lat;
       _prefs->node_lon = _sensors->node_lon;
       savePrefs();
+      _callbacks->onNodeConfigChanged();
       strcpy(reply, "ok");
     } else if (memcmp(command, "gps advert", 10) == 0) {
       if (strlen(command) == 10) {
@@ -496,6 +466,7 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
       strcpy(reply, "ERROR: dutycycle must be 1-100");
     } else {
       _prefs->airtime_factor = (100.0f / dc) - 1.0f;
+      _prefs->radio_manual = 1;  // user manually set duty cycle -> AutoRegions must not override
       savePrefs();
       float actual = 100.0f / (_prefs->airtime_factor + 1.0f);
       int a_int = (int)actual;
@@ -503,9 +474,16 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
       sprintf(reply, "OK - %d.%d%%", a_int, a_frac);
     }
   } else if (memcmp(config, "af ", 3) == 0) {
-    _prefs->airtime_factor = atof(&config[3]);
-    savePrefs();
-    strcpy(reply, "OK");
+    char* end;
+    float af = strtof(&config[3], &end);
+    if (end == &config[3] || af < 0 || af > 9) {
+      strcpy(reply, "ERROR: af must be 0-9");
+    } else {
+      _prefs->airtime_factor = af;
+      _prefs->radio_manual = 1;  // user manually set airtime factor -> AutoRegions must not override
+      savePrefs();
+      strcpy(reply, "OK");
+    }
   } else if (memcmp(config, "int.thresh ", 11) == 0) {
     _prefs->interference_threshold = atoi(&config[11]);
     savePrefs();
@@ -568,6 +546,7 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
       StrHelper::strncpy(_prefs->node_name, &config[5], sizeof(_prefs->node_name));
       savePrefs();
       _callbacks->updateFloodAdvertTimer();
+      _callbacks->onNodeConfigChanged();
       strcpy(reply, "OK");
     } else {
       strcpy(reply, "Error, bad chars");
@@ -576,15 +555,61 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
     _prefs->disable_fwd = memcmp(&config[7], "off", 3) == 0;
     savePrefs();
     strcpy(reply, _prefs->disable_fwd ? "OK - repeat is now OFF" : "OK - repeat is now ON");
-#if defined(USE_SX1262) || defined(USE_SX1268) || defined(USE_LR1110)
   } else if (memcmp(config, "radio.rxgain ", 13) == 0) {
-    _prefs->rx_boosted_gain = memcmp(&config[13], "on", 2) == 0;
-    strcpy(reply, "OK");
+    bool enabled = memcmp(&config[13], "on", 2) == 0;
+    _prefs->rx_boosted_gain = enabled;
     savePrefs();
-    _callbacks->setRxBoostedGain(_prefs->rx_boosted_gain);
-#endif
+    if (_callbacks->setRxBoostedGain(enabled)) {
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error: unsupported");
+    }
+  } else if (memcmp(config, "radio.fem.rxgain ", 17) == 0) {
+    if (!_board->canControlLoRaFemLna()) {
+      strcpy(reply, "Error: unsupported");
+    } else if (memcmp(&config[17], "on", 2) == 0) {
+      if (_board->setLoRaFemLnaEnabled(true)) {
+        _prefs->radio_fem_rxgain = 1;
+        savePrefs();
+        strcpy(reply, "OK - LoRa FEM RX gain on");
+      } else {
+        strcpy(reply, "Error: failed to apply LoRa FEM RX gain");
+      }
+    } else if (memcmp(&config[17], "off", 3) == 0) {
+      if (_board->setLoRaFemLnaEnabled(false)) {
+        _prefs->radio_fem_rxgain = 0;
+        savePrefs();
+        strcpy(reply, "OK - LoRa FEM RX gain off");
+      } else {
+        strcpy(reply, "Error: failed to apply LoRa FEM RX gain");
+      }
+    } else {
+      strcpy(reply, "Error: state must be on or off");
+    }
+  } else if (memcmp(config, "radio.fem.txgain ", 17) == 0) {
+    if (!_board->canControlLoRaFemPaGain()) {
+      strcpy(reply, "Error: unsupported");
+    } else if (memcmp(&config[17], "on", 2) == 0) {
+      if (_board->setLoRaFemPaGainEnabled(true)) {
+        _prefs->radio_fem_txgain = 1;
+        savePrefs();
+        strcpy(reply, "OK - LoRa FEM TX gain on");
+      } else {
+        strcpy(reply, "Error: failed to apply LoRa FEM TX gain");
+      }
+    } else if (memcmp(&config[17], "off", 3) == 0) {
+      if (_board->setLoRaFemPaGainEnabled(false)) {
+        _prefs->radio_fem_txgain = 0;
+        savePrefs();
+        strcpy(reply, "OK - LoRa FEM TX gain off");
+      } else {
+        strcpy(reply, "Error: failed to apply LoRa FEM TX gain");
+      }
+    } else {
+      strcpy(reply, "Error: state must be on or off");
+    }
   } else if (memcmp(config, "radio ", 6) == 0) {
-    strcpy(tmp, &config[6]);
+    StrHelper::strncpy(tmp, &config[6], sizeof(tmp));
     const char *parts[4];
     int num = mesh::Utils::parseTextParts(tmp, parts, 4);
     float freq  = num > 0 ? strtof(parts[0], nullptr) : 0.0f;
@@ -604,11 +629,24 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
   } else if (memcmp(config, "lat ", 4) == 0) {
     _prefs->node_lat = atof(&config[4]);
     savePrefs();
+    _callbacks->onNodeConfigChanged();
     strcpy(reply, "OK");
   } else if (memcmp(config, "lon ", 4) == 0) {
     _prefs->node_lon = atof(&config[4]);
     savePrefs();
+    _callbacks->onNodeConfigChanged();
     strcpy(reply, "OK");
+  } else if (memcmp(config, "tier ", 5) == 0) {
+    const char* value = &config[5];
+    if (strcmp(_callbacks->getRole(), "repeater") != 0) {
+      strcpy(reply, "Error: unsupported");
+    } else if (value[0] >= '0' && value[0] <= '3' && value[1] == 0) {
+      RepeaterRole::apply(*_prefs, value[0] - '0');
+      savePrefs();
+      strcpy(reply, "OK");
+    } else {
+      strcpy(reply, "Error, must be 0, 1, 2, or 3");
+    }
   } else if (memcmp(config, "rxdelay ", 8) == 0) {
     float db = atof(&config[8]);
     if (db >= 0 && db <= 20.0f) {
@@ -704,10 +742,17 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
       strcpy(reply, "OK");
     }
   } else if (memcmp(config, "tx ", 3) == 0) {
-    _prefs->tx_power_dbm = atoi(&config[3]);
-    savePrefs();
-    _callbacks->setTxPower(_prefs->tx_power_dbm);
-    strcpy(reply, "OK");
+    char* end;
+    long tx = strtol(&config[3], &end, 10);
+    if (end == &config[3] || tx < -9 || tx > 30) {
+      strcpy(reply, "ERROR: tx must be -9 to 30");
+    } else {
+      _prefs->tx_power_dbm = (int8_t)tx;
+      _prefs->radio_manual = 1;  // user manually set tx power -> AutoRegions must not override
+      savePrefs();
+      _callbacks->setTxPower(_prefs->tx_power_dbm);
+      strcpy(reply, "OK");
+    }
   } else if (sender_timestamp == 0 && memcmp(config, "freq ", 5) == 0) {
     _prefs->freq = atof(&config[5]);
     savePrefs();
@@ -772,17 +817,30 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
       }
     } else {
       _prefs->adc_multiplier = 0.0f;
-      strcpy(reply, "Error: unsupported by this board");
+      strcpy(reply, "Error: unsupported");
     };
-  } else if (memcmp(config, "flood.advert.base ", 18) == 0) {
-    float f = atof(&config[18]);
-    if ((f > 0) || (f < 1)) {
-      _prefs->flood_advert_base = f;
-      savePrefs();
-      strcpy(reply, "OK");
+  #if defined(USE_LR2021)
+  } else if (memcmp(config, "extra.sf ", 9) == 0) {
+    strcpy(tmp, &config[9]);
+    const char *parts[4];
+    uint8_t sideDetSFs[4];
+    int num = mesh::Utils::parseTextParts(tmp, parts, 4);
+    if (num > 3) {
+      sprintf(reply, "Invalid extra SF config");
     } else {
-      strcpy(reply, "Error: base must be between 0 and 1");
+      for (int i = 0; i < num; i++) {
+        sideDetSFs[i] = atoi(parts[i]);
+      }
+      sideDetSFs[num] = 0;
+      if (_callbacks->configSideDetectors(sideDetSFs, num, _prefs->bw)) {
+        for (int i = 0; i <= num; i++) _prefs->extra_sf[i] = sideDetSFs[i];
+        savePrefs();
+        sprintf(reply, "OK - extra SFs set");
+      } else {
+        sprintf(reply, "Invalid extra SF config");
+      }
     }
+  #endif
   } else {
     strcpy(reply, "unknown config: ");
     StrHelper::strncpy(&reply[16], config, 160-17);
@@ -799,7 +857,15 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
   } else if (memcmp(config, "af", 2) == 0) {
     sprintf(reply, "> %s", StrHelper::ftoa(_prefs->airtime_factor));
   } else if (memcmp(config, "int.thresh", 10) == 0) {
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
+    if (_prefs->interference_threshold == 255) {   // InterferenceAuto::AUTO (lusofw/InterferenceAuto.h)
+      strcpy(reply, "> auto");
+    } else {
+      sprintf(reply, "> %d", (uint32_t) _prefs->interference_threshold);
+    }
+#else
     sprintf(reply, "> %d", (uint32_t) _prefs->interference_threshold);
+#endif
   } else if (memcmp(config, "cad", 3) == 0) {
     sprintf(reply, "> %s", _prefs->cad_enabled ? "on" : "off");
   } else if (memcmp(config, "agc.reset.interval", 18) == 0) {
@@ -827,10 +893,20 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
     sprintf(reply, "> %s", StrHelper::ftoa(_prefs->node_lat));
   } else if (memcmp(config, "lon", 3) == 0) {
     sprintf(reply, "> %s", StrHelper::ftoa(_prefs->node_lon));
-#if defined(USE_SX1262) || defined(USE_SX1268) || defined(USE_LR1110)
   } else if (memcmp(config, "radio.rxgain", 12) == 0) {
     sprintf(reply, "> %s", _prefs->rx_boosted_gain ? "on" : "off");
-#endif
+  } else if (memcmp(config, "radio.fem.rxgain", 16) == 0) {
+    if (!_board->canControlLoRaFemLna()) {
+      strcpy(reply, "Error: unsupported");
+    } else {
+      sprintf(reply, "> %s", _board->isLoRaFemLnaEnabled() ? "on" : "off");
+    }
+  } else if (memcmp(config, "radio.fem.txgain", 16) == 0) {
+    if (!_board->canControlLoRaFemPaGain()) {
+      strcpy(reply, "Error: unsupported");
+    } else {
+      sprintf(reply, "> %s", _board->isLoRaFemPaGainEnabled() ? "on" : "off");
+    }
   } else if (memcmp(config, "radio", 5) == 0) {
     char freq[16], bw[16];
     strcpy(freq, StrHelper::ftoa(_prefs->freq));
@@ -877,8 +953,10 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
   } else if (memcmp(config, "public.key", 10) == 0) {
     strcpy(reply, "> ");
     mesh::Utils::toHex(&reply[2], _callbacks->getSelfId().pub_key, PUB_KEY_SIZE);
-  } else if (memcmp(config, "role", 4) == 0) {
+  } else if (memcmp(config, "role", 4) == 0 && config[4] == 0) {
     sprintf(reply, "> %s", _callbacks->getRole());
+  } else if (memcmp(config, "tier", 4) == 0 && config[4] == 0) {
+    sprintf(reply, "> %d", (uint32_t)_prefs->role);
   } else if (memcmp(config, "bridge.type", 11) == 0) {
     sprintf(reply, "> %s",
 #ifdef WITH_RS232_BRIDGE
@@ -916,17 +994,15 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
           strcpy(reply, "> unknown");
       }
   #else
-      strcpy(reply, "ERROR: unsupported");
+      strcpy(reply, "Error: unsupported");
   #endif
   } else if (memcmp(config, "adc.multiplier", 14) == 0) {
     float adc_mult = _board->getAdcMultiplier();
     if (adc_mult == 0.0f) {
-      strcpy(reply, "Error: unsupported by this board");
+      strcpy(reply, "Error: unsupported");
     } else {
       sprintf(reply, "> %.3f", adc_mult);
     }
-  } else if (memcmp(config, "flood.advert.base", 17) == 0) {
-    sprintf(reply, "> %s", StrHelper::ftoa(_prefs->flood_advert_base));
   // Power management commands
   } else if (memcmp(config, "pwrmgt.support", 14) == 0) {
 #ifdef NRF52_POWER_MANAGEMENT
@@ -941,19 +1017,23 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
     strcpy(reply, "ERROR: Power management not supported");
 #endif
   } else if (memcmp(config, "pwrmgt.bootreason", 17) == 0) {
-#ifdef NRF52_POWER_MANAGEMENT
     sprintf(reply, "> Reset: %s; Shutdown: %s",
       _board->getResetReasonString(_board->getResetReason()),
       _board->getShutdownReasonString(_board->getShutdownReason()));
-#else
-    strcpy(reply, "ERROR: Power management not supported");
-#endif
   } else if (memcmp(config, "pwrmgt.bootmv", 13) == 0) {
 #ifdef NRF52_POWER_MANAGEMENT
     sprintf(reply, "> %u mV", _board->getBootVoltage());
 #else
     strcpy(reply, "ERROR: Power management not supported");
 #endif
+  } else if (memcmp(config, "extra.sf", 8) == 0) {
+    char* tmp = reply;
+    for (int i = 0; i < 3 && _prefs->extra_sf[i] != 0; i++) {
+      tmp += sprintf(tmp, "%s%d", (i == 0) ? "" : ",", _prefs->extra_sf[i]);
+    } 
+    if (tmp == reply) {
+      sprintf(reply, "No extra SF configured");
+    }
   } else {
     sprintf(reply, "??: %s", config);
   }
