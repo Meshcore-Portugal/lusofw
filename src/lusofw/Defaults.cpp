@@ -31,10 +31,6 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
     prefs.direct_tx_delay_factor = 0.3f;        // was 0.2
     prefs.rx_delay_base = 0.0f;                 // turn off by default, was 10.0;
     prefs.tx_delay_factor = 0.5f;               // was 0.25f
-
-#if defined(USE_SX1262) || defined(USE_SX1268)
-    prefs.rx_boosted_gain = 1;   // config struct changes made this be disabled on edge cases
-#endif
   }
 
   if (versionLessThan(version, "2026.9.1-rc4")) {
@@ -46,6 +42,12 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
   }
 
   if (versionLessThan(version, "2026.9.1")) {
+#if defined(USE_SX1262) || defined(USE_SX1268)
+    // config struct changes made this be disabled on edge cases
+    // new config struct from 2026.9.1
+    prefs.rx_boosted_gain = 1;
+#endif
+
     if (prefs.cad_enabled == 1) {
       // disable hardware CAD listen-before-talk
       prefs.cad_enabled = 0;
