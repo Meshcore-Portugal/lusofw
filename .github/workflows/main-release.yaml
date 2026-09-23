@@ -46,16 +46,10 @@ jobs:
             exit 0
           fi
 
-          # A new main release is cut only when no release/tag exists for this
-          # version yet. Candidate tags are gathered from *both* GitHub
-          # releases and the raw remote tags, so a transient `gh` API hiccup
-          # can't make us miss an existing release and cut a duplicate.
-          #
-          # A tag belongs to ${VERSION} when it equals ${VERSION} exactly or
-          # starts with "${VERSION}-" (the ${VERSION}-<sha> form produced by the
-          # release job). Matching is literal (awk index/==, not regex) so dots
-          # in the version are treated as literals and rc2 does not falsely
-          # match rc20.
+          # A new main release is cut only when its exact tag does not exist.
+          # Query both GitHub releases and raw remote tags, so a transient `gh`
+          # API hiccup cannot create a duplicate release. RC tags use the same
+          # version prefix, but do not block the final release.
           ALL_TAGS="$({
             gh release list --json tagName -L 200 \
               --jq '.[].tagName' 2>/dev/null || true
@@ -64,7 +58,7 @@ jobs:
           } | sort -u)"
 
           EXISTING="$(awk -v v="${VERSION}" '
-            $0 == v || index($0, v "-") == 1 { print }
+            $0 == v { print }
           ' <<< "${ALL_TAGS}")"
 
           if [[ -n "${EXISTING}" ]]; then
