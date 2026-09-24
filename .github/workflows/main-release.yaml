@@ -98,6 +98,7 @@ jobs:
           - heltec_v4_companion_radio_ble
           - heltec_v4_repeater
           - heltec_v4_repeater_bridge_espnow
+          - heltec_v4_repeater_bridge_rs232
           - heltec_v4_tft_repeater
           - heltec_v4_tft_repeater_bridge_espnow
           - Heltec_WSL3_repeater
