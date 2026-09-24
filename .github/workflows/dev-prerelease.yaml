@@ -28,6 +28,7 @@ jobs:
         id: decide
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
@@ -36,6 +37,13 @@ jobs:
           VERSION="v${VERSION#v}"
 
           echo "Current FIRMWARE_VERSION: ${VERSION}"
+
+          # Manual workflow dispatch forces build and replaces any existing prerelease.
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "Workflow dispatched manually: forcing build and prerelease."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           # Only cut a dev prerelease when the version is itself a release
           # candidate (e.g. v1.2.3-rc1, v1.2.3-rc2). Stable or plain dev
@@ -203,15 +211,32 @@ jobs:
           echo "RELEASE_VERSION=${FIRMWARE_VERSION}" >> "$GITHUB_ENV"
           echo "RELEASE_SHA=${SHORT_SHA}" >> "$GITHUB_ENV"
 
+      - name: Delete existing prerelease
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} exists; deleting..."
+            gh release delete "${RELEASE_TAG}" --yes
+          else
+            echo "Release ${RELEASE_TAG} does not exist; skipping delete."
+          fi
+
       - name: Create and push prerelease tag
         shell: bash
         run: |
           set -euo pipefail
-          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            git tag -f "${RELEASE_TAG}" HEAD
+            git push origin "refs/tags/${RELEASE_TAG}" --force
+          elif git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
             echo "Tag ${RELEASE_TAG} already exists on remote; reusing it."
           else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
             git tag "${RELEASE_TAG}"
             git push origin "${RELEASE_TAG}"
           fi
@@ -267,6 +292,7 @@ jobs:
           done
 
       - name: Create Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
@@ -275,3 +301,25 @@ jobs:
           draft: false
           prerelease: true
           files: out/*
+
+      - name: Send Telegram notification
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
+          RELEASE_URL: ${{ steps.create_release.outputs.url }}
+          RELEASE_NAME: ${{ env.RELEASE_TAG }}
+          IS_PRERELEASE: true
+        run: |
+          TYPE=$([ "${IS_PRERELEASE}" = "true" ] && echo "Pre-release (RC)" || echo "Production Release")
+          MSG=$(printf '🚀 <b>New %s:</b> <a href="%s">%s</a>\n\nPode flashar online através do <a href="https://meshcore.pt/tools/flasher">firmware flasher</a>.' "${TYPE}" "${RELEASE_URL}" "${RELEASE_NAME}")
+
+          PAYLOAD=$(jq -n \
+            --arg chat_id "${CHAT_ID}" \
+            --arg text "${MSG}" \
+            --arg thread_id "${THREAD_ID}" \
+            '{"chat_id": $chat_id, "parse_mode": "HTML", "text": $text} + (if $thread_id != "" then {"message_thread_id": ($thread_id | tonumber)} else {} end)')
+
+          curl -fsS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
