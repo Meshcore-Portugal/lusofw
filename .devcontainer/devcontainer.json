@@ -18,7 +18,6 @@
 		}
 	},
 	"runArgs": [
-		"--privileged",
 		"--network=host",
 		"--volume=/dev:/dev",
 		"--group-add=986",

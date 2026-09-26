@@ -52,13 +52,18 @@ void UITask::renderCurrScreen() {
   // AFTER endFrame() in loop(), so the 1-bit diff repaint can never overwrite
   // it with black/white bands (fixes blink + slow band-by-band paint).
   if (millis() < _started_at + BOOT_SCREEN_MILLIS) {
+    _display->setColor(UIColor::primary_txt);
+    _display->setTextSize(1);
+    _display->drawTextCentered(_display->width() / 2, 37, BootScreen::WEBSITE);
+
     _display->setColor(UIColor::secondary_txt);
     _display->setTextSize(1);
     _display->drawTextCentered(_display->width() / 2, 47, _version_info);
   } else if (_powering_off_at > 0) {
+#if !defined(LUSOFW_BOOT_LOGO_PT)
     int lx = (PANEL_NATIVE_W - MESHCORE_LOGO_RGB_W) / 2;
-    int ly = (PANEL_NATIVE_H - MESHCORE_LOGO_RGB_H) / 2;
-    _display->drawRGBBitmap(lx, ly, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
+    _display->drawRGBBitmap(lx, 10, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
+#endif
     _display->setColor(UIColor::primary_txt);
     _display->setTextSize(1);
     _display->drawTextCentered(_display->width() / 2, 37, "Turning OFF");
@@ -136,8 +141,7 @@ void UITask::loop() {
       static bool _logo_drawn = false;
       if (!_logo_drawn && _display->isOn()) {
         int lx = (PANEL_NATIVE_W - MESHCORE_LOGO_RGB_W) / 2;
-        int ly = (PANEL_NATIVE_H - MESHCORE_LOGO_RGB_H) / 2;
-        _display->drawRGBBitmap(lx, ly, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
+        _display->drawRGBBitmap(lx, 10, MESHCORE_LOGO_RGB_W, MESHCORE_LOGO_RGB_H, meshcore_logo_rgb);
         _logo_drawn = true;
       }
 #endif

@@ -3,6 +3,7 @@
 #include "../MyMesh.h"
 #include "target.h"
 #include <lusofw/BatteryCurve.h>
+#include <lusofw/BootScreen.h>
 #ifdef WIFI_SSID
   #include <WiFi.h>
 #endif
@@ -39,7 +40,7 @@
 class SplashScreen : public UIScreen {
   UITask* _task;
   unsigned long dismiss_after;
-  char _version_info[12];
+  char _version_info[32];
   bool _logo_drawn = false;
 
 public:
@@ -49,10 +50,13 @@ public:
     const char *ver = FIRMWARE_VERSION;
     const char *dash = strchr(ver, '-');
 
+    char clean_ver[16];
     int len = dash ? dash - ver : strlen(ver);
-    if (len >= sizeof(_version_info)) len = sizeof(_version_info) - 1;
-    memcpy(_version_info, ver, len);
-    _version_info[len] = 0;
+    if (len >= sizeof(clean_ver)) len = sizeof(clean_ver) - 1;
+    memcpy(clean_ver, ver, len);
+    clean_ver[len] = 0;
+
+    snprintf(_version_info, sizeof(_version_info), "%s (%s)", clean_ver, FIRMWARE_BUILD_DATE);
 
     dismiss_after = millis() + BOOT_SCREEN_MILLIS;
   }
@@ -72,6 +76,10 @@ public:
 
     // Text goes through the normal 1-bit buffer, placed just below the logo
     // (which occupies physical y 10..63). endFrame only paints this band.
+    display.setColor(UIColor::primary_txt);
+    display.setTextSize(1);
+    display.drawTextCentered(display.width() / 2, 37, BootScreen::WEBSITE);
+
     display.setColor(UIColor::secondary_txt);
     display.setTextSize(1);
     display.drawTextCentered(display.width() / 2, 47, _version_info);
