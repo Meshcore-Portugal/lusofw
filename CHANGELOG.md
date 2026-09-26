@@ -1,5 +1,15 @@
 # Changelog
 
+## [v2026.9.2] - 26/09/2026
+
+Based on MeshCore v1.17.1
+main@d92964352441e53b93e8667b802e04f6e072b39e
+
+#### Build e Configuração
+
+- BUILD: Desativado o modo stealth (`LUSOFW_STEALTH_MODE`), que tinha ficado ativo por engano na versão anterior.
+- CI: Adicionado o variant `heltec_v4_repeater_bridge_rs232` aos fluxos de trabalho de pré-lançamento e de lançamento.
+
 ## [v2026.9.1] - 23/09/2026
 
 Based on MeshCore v1.17.1
