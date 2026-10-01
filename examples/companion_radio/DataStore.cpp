@@ -1,5 +1,8 @@
 #include <Arduino.h>
 #include "DataStore.h"
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
+#include "lusofw/InterferenceAuto.h"
+#endif
 
 #if defined(EXTRAFS) || defined(QSPIFLASH)
   #define MAX_BLOBRECS 100
@@ -193,8 +196,14 @@ void DataStore::loadPrefs(NodePrefs& prefs) {
   if (_fs->exists("/prefs.json")) {
     File file = openRead(_fs, "/prefs.json");
     if (file) {
-      prefs.loadSerial(file);   // new Serial prefs
+      bool loaded = prefs.loadSerial(file);   // new Serial prefs
       file.close();
+#if defined(LUSOFW_RADIO_AUTO_THRESH)
+      if (loaded && prefs.interference_threshold == 0) {
+        prefs.interference_threshold = InterferenceAuto::AUTO;
+        savePrefs(prefs);
+      }
+#endif
     }
   } else if (_fs->exists("/new_prefs")) {
     loadPrefsInt("/new_prefs", prefs);
