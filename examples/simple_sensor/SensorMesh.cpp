@@ -22,7 +22,7 @@
 #endif
 
 #ifndef ADVERT_NAME
-  #define  ADVERT_NAME   "sensor"
+  #define ADVERT_NAME "lusofw-" FIRMWARE_VERSION
 #endif
 #ifndef ADVERT_LAT
   #define  ADVERT_LAT  0.0
