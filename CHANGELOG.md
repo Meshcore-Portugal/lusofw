@@ -1,5 +1,15 @@
 # Changelog
 
+## [v2026.9.3-rc1] - Unreleased
+
+### Correções
+
+- CLIENTE: Migração do limiar de interferência RSSI para modo automático (`AUTO`) ao carregar preferências com valor `0` quando `LUSOFW_RADIO_AUTO_THRESH` está ativo.
+
+#### Build e Configuração
+
+- BUILD: Removidos os nomes de advert específicos de cada variant. Repeaters, room servers e sensores usam `lusofw-<FIRMWARE_VERSION>` como nome inicial.
+
 ## [v2026.9.2] - 26/09/2026
 
 Based on MeshCore v1.17.1
