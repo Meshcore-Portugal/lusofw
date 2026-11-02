@@ -2,39 +2,29 @@
 set -euo pipefail
 
 # Install Claude Code
-npm install -g @anthropic-ai/claude-code @z_ai/coding-helper
-#npx @z_ai/coding-helper
+npm install -g -allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code
 
 # Auto-create Claude settings
 mkdir -p ${HOME}/.claude
 cat > ${HOME}/.claude/settings.json <<'EOF'
 {
   "env": {
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "cheap-coding[1m]",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "premium-coding[1m]",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "normal-coding[1m]",
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000",
-    "CLAUDE_MODEL": "opusplan",
+    "ANTHROPIC_DEFAULT_FABLE_MODEL": "flagship",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "pro",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "flash",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "flash-lite",
+    "_CLAUDE_CODE_AUTO_COMPACT_WINDOW": "150000",
+    "_CLAUDE_CODE_MAX_OUTPUT_TOKENS": "16384",
+    "CLAUDE_MODEL": "flash",
     "DISABLE_ERROR_REPORTING": "1",
     "DISABLE_TELEMETRY": "1"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions",
-    "allow": [
-			"Bash(git grep *)",
-			"Bash(pio run)",
-			"Bash(pio run *)",
-			"Bash(pio device monitor *)",
-			"Bash(pio project config *)",
-			"Bash(pio pkg list *)"
-    ]
+    "defaultMode": "bypassPermissions"
   },
-  "theme": "dark",
+  "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high",
-  "model": "opusplan"
+  "theme": "dark"
 }
 EOF
 
@@ -49,3 +39,11 @@ if [ "$(readlink "${MEMORY_DST}")" != "${MEMORY_SRC}" ]; then
 	rm -rf "${MEMORY_DST}"
 	ln -sn "${MEMORY_SRC}" "${MEMORY_DST}"
 fi
+
+claude plugin install code-review-anthropics@anthropic-plugin-directory --scope user
+claude plugin install code-simplifier@anthropic-plugin-directory --scope user
+claude plugin install frontend-design@anthropic-plugin-directory --scope user
+claude plugin install ralph-loop@anthropic-plugin-directory --scope user
+claude plugin install security-guidance@anthropic-plugin-directory --scope user
+claude plugin install skill-creator@anthropic-plugin-directory --scope user
+claude plugin install superpowers@anthropic-plugin-directory --scope user

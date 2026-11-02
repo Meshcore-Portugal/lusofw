@@ -2,6 +2,7 @@
 	"name": "MeshCore | Luso Firmware",
 	"image": "mcr.microsoft.com/devcontainers/base:bookworm",
 	"features": {
+		"ghcr.io/devcontainers/features/github-cli:1": {},
 		"ghcr.io/devcontainers/features/node:2": {
 			"version": "lts"
 		},
@@ -70,6 +71,7 @@
 				"Anthropic.claude-code",
 				"github.vscode-github-actions",
 				"GitHub.vscode-pull-request-github",
+				"ms-vscode.cpptools",
 				"platformio.platformio-ide"
 			],
 			"unwantedRecommendations": [
