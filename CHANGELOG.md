@@ -9,6 +9,8 @@
 #### Build e Configuração
 
 - BUILD: Removidos os nomes de advert específicos de cada variant. Repeaters, room servers e sensores usam `lusofw-<FIRMWARE_VERSION>` como nome inicial.
+- BUILD: Adicionado o ambiente `heltec_v4_r8_repeater_bridge_espnow` para o repetidor Heltec V4 R8 com ponte ESP-NOW.
+- DEVCONTAINER: Adicionados GitHub CLI e extensão C/C++; atualizadas a configuração e as extensões do Claude Code.
 
 ## [v2026.9.2] - 26/09/2026
 
