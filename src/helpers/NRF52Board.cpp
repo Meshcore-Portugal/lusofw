@@ -410,7 +410,23 @@ bool NRF52Board::getBootloaderVersion(char* out, size_t max_len) {
     return false;
 }
 
+#ifdef LUSOFW_OTA_DIRECT
+static SoftwareTimer gdfu_reset_timer;
+static void gdfu_reset_cb(TimerHandle_t) { enterOTADfu(); }
+#endif
+
 bool NRF52Board::startOTAUpdate(const char *id, char reply[]) {
+#ifdef LUSOFW_OTA_DIRECT
+  char bl_ver[32];
+  if (getBootloaderVersion(bl_ver, sizeof(bl_ver)) && strncmp(bl_ver, "gdfu-", 5) == 0) {
+    // Defer reset so the CLI reply can still go out.
+    gdfu_reset_timer.begin(2000, gdfu_reset_cb, NULL, false);
+    gdfu_reset_timer.start();
+    strcpy(reply, "OK - rebooting into bootloader");
+    return true;
+  }
+#endif
+
   // Config the peripheral connection with maximum bandwidth
   // more SRAM required by SoftDevice
   // Note: All config***() function must be called before begin()
