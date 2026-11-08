@@ -2,6 +2,10 @@
 
 ## [v2026.9.3-rc1] - Unreleased
 
+### Funcionalidades
+
+- NRF52: Com a flag de build `LUSOFW_OTA_DIRECT` (ativa no Heltec T114) e um bootloader cuja versão começa por `gdfu-`, `start ota` reinicia diretamente para o bootloader em vez de iniciar o serviço BLE DFU. Com qualquer outro bootloader, ou sem a flag, mantém-se o comportamento anterior.
+
 ### Correções
 
 - CLIENTE: Migração do limiar de interferência RSSI para modo automático (`AUTO`) ao carregar preferências com valor `0` quando `LUSOFW_RADIO_AUTO_THRESH` está ativo.
@@ -11,7 +15,6 @@
 - BUILD: Removidos os nomes de advert específicos de cada variant. Repeaters, room servers e sensores usam `lusofw-<FIRMWARE_VERSION>` como nome inicial.
 - BUILD: Adicionado o ambiente `heltec_v4_r8_repeater_bridge_espnow` para o repetidor Heltec V4 R8 com ponte ESP-NOW.
 - DEVCONTAINER: Adicionados GitHub CLI e extensão C/C++; atualizadas a configuração e as extensões do Claude Code.
-- BUILD: Adicionada a flag `LUSOFW_OTA_DIRECT` (ativa no Heltec T114). Com um bootloader cuja versão começa por `gdfu-`, `start ota` reinicia diretamente para o bootloader em vez de iniciar o serviço BLE DFU; com qualquer outro bootloader mantém-se o comportamento anterior.
 
 ## [v2026.9.2] - 26/09/2026
 
