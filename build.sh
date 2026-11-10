@@ -143,7 +143,7 @@ build_firmware() {
   ENV_PLATFORM=($(get_platform_for_env $1))
 
   # get git commit sha (with * suffix if modified)
-  COMMIT_HASH=$(git describe --always --dirty=* --exclude='*')
+  COMMIT_HASH=$(git describe --always --dirty=* --exclude='*' 2>/dev/null || echo unknown)
 
   # get FIRMWARE_VERSION, provided by environment or read from platformio.ini
   if [ -z "$FIRMWARE_VERSION" ]; then
