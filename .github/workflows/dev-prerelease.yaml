@@ -264,7 +264,7 @@ jobs:
               exit 0
             fi
 
-            awk -v tag="UNRELEASED" '
+            awk -v tag="${version}" '
               BEGIN { capture=0 }
               $0 ~ "^##[[:space:]]*\\[" tag "\\]" || $0 ~ "^##[[:space:]]*" tag "([[:space:]]|$)" {
                 capture=1
@@ -276,11 +276,30 @@ jobs:
 
           } > release_body.md
 
+          # Fall back to the first CHANGELOG section; our sections are
+          # version-titled (e.g. "## [v2026.11.1-rc1] - Unreleased"), never
+          # a literal "## [UNRELEASED]" heading. Mirrors main-release.yaml.
+          if [[ -f CHANGELOG.md ]] && { [[ ! -s release_body.md ]] || [[ $(wc -l < release_body.md) -le 2 ]]; }; then
+            {
+              echo "Automated dev prerelease of dev@${sha} for ${version}."
+              echo ""
+              awk '
+                BEGIN { capture=0 }
+                /^##[[:space:]]/ {
+                  if (capture == 1) exit
+                  capture=1
+                  next
+                }
+                capture { print }
+              ' CHANGELOG.md
+            } > release_body.md
+          fi
+
           if [[ ! -s release_body.md ]] || [[ $(wc -l < release_body.md) -le 2 ]]; then
             {
               echo "Automated dev prerelease of dev@${sha} for ${version}."
               echo ""
-              echo "No UNRELEASED changelog entries found."
+              echo "No changelog entries found."
             } > release_body.md
           fi
 
