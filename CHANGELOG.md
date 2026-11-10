@@ -1,6 +1,6 @@
 # Changelog
 
-## [v2026.9.3-rc1] - Unreleased
+## [v2026.11.1-rc1] - Unreleased
 
 ### Funcionalidades
 
