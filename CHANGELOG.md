@@ -8,6 +8,7 @@
 
 ### Correções
 
+- LILYGO T-LORA V2.1-1.6: Removido o botão de utilizador (`PIN_USER_BTN`, GPIO0), inexistente nesta placa. Um GPIO0 flutuante podia ser lido como pressão longa e desligar o repetidor (`Powering Off`) logo após o arranque.
 - CLIENTE: Migração do limiar de interferência RSSI para modo automático (`AUTO`) ao carregar preferências com valor `0` quando `LUSOFW_RADIO_AUTO_THRESH` está ativo.
 
 #### Build e Configuração
