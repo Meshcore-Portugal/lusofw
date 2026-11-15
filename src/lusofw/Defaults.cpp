@@ -19,7 +19,7 @@ bool LusoDefaults::applyDefaults(NodePrefs &prefs, RegionMap &region_map, FILESY
   prefs.advert_interval = 0;                  // direct adverts are legacy
   prefs.advert_loc_policy = ADVERT_LOC_PREFS; // use coordinates from prefs
   prefs.flood_advert_interval = 23;           // defaults to 23h on lusofw, when >0 enabled our custom advert handling
-  prefs.loop_detect = LOOP_DETECT_MODERATE;   // default to minimal loop detection
+  prefs.loop_detect = LOOP_DETECT_MODERATE;   // default to moderate loop detection
   prefs.path_hash_mode = 1;                   // default to 2 bytes
 
   // Then layer any version-specific overrides.
