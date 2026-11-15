@@ -577,7 +577,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `set dutycycle <value>`
 
 **Parameters:**
-- `value`: Duty cycle percentage (1-100)
+- `value`: Duty cycle percentage (10-100)
 
 **Default:** `50%` (equivalent to airtime factor 1.0)
 
@@ -585,7 +585,6 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 - `set dutycycle 100` — no duty cycle limit
 - `set dutycycle 50` — 50% duty cycle (default)
 - `set dutycycle 10` — 10% duty cycle
-- `set dutycycle 1` — 1% duty cycle (strictest EU requirement)
 
 > **Note:** Added in firmware v1.15.0
 

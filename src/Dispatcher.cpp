@@ -36,6 +36,9 @@ void Dispatcher::begin() {
   float duty_cycle = 1.0f / (1.0f + getAirtimeBudgetFactor());
   tx_budget_ms = (unsigned long)(duty_cycle_window_ms * duty_cycle);
   last_budget_update = _ms->getMillis();
+#ifdef LUSOFW_DUTY_WINDOW
+  dc_window.reset(_ms->getMillis());
+#endif
 
   _radio->begin();
   prev_isrecv_mode = _radio->isInRecvMode();
@@ -106,6 +109,10 @@ void Dispatcher::loop() {
                          t);
 #endif
 
+#ifdef LUSOFW_DUTY_WINDOW
+      dc_window.add(_ms->getMillis(), t);  // gate lives in checkSend()
+      next_tx_time = _ms->getMillis();
+#else
       updateTxBudget();
 
       if (t > tx_budget_ms) {
@@ -121,6 +128,7 @@ void Dispatcher::loop() {
       } else {
         next_tx_time = _ms->getMillis();
       }
+#endif
 
       _radio->onSendFinished();
       logTx(outbound, 2 + outbound->getPathByteLen() + outbound->payload_len);
@@ -294,6 +302,18 @@ void Dispatcher::processRecvPacket(Packet* pkt) {
 void Dispatcher::checkSend() {
   if (_mgr->getOutboundCount(_ms->getMillis()) == 0) return;
   
+#ifdef LUSOFW_DUTY_WINDOW
+  // Need room for a full MTU packet within the last hour, else wait for the oldest slot to expire.
+  float af = getAirtimeBudgetFactor();
+  if (af > 0) {
+    uint32_t now = _ms->getMillis();
+    uint32_t limit = (uint32_t)(duty_cycle_window_ms / (1.0f + af));
+    if (dc_window.used(now) + _radio->getEstAirtimeFor(MAX_TRANS_UNIT) > limit) {
+      next_tx_time = futureMillis(dc_window.msToNextSlot(now));
+      return;
+    }
+  }
+#else
   updateTxBudget();
   
   uint32_t est_airtime = _radio->getEstAirtimeFor(MAX_TRANS_UNIT);
@@ -303,6 +323,7 @@ void Dispatcher::checkSend() {
     next_tx_time = futureMillis((unsigned long)(needed / duty_cycle));
     return;
   }
+#endif
   
   if (!millisHasNowPassed(next_tx_time)) return;
   if (_radio->isReceiving()) {

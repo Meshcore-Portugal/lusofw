@@ -12,6 +12,8 @@ main@81dbae592ffad40b4212bc0b37e82b38da08f4bc
 - NRF52: Com a flag de build `LUSOFW_OTA_DIRECT` (ativa no Heltec T114) e um bootloader cuja versão começa por `gdfu-`, `start ota` reinicia diretamente para o bootloader em vez de iniciar o serviço BLE DFU. Com qualquer outro bootloader, ou sem a flag, mantém-se o comportamento anterior.
 
 ### Correções
+- DUTY CYCLE: Com flag de build `LUSOFW_DUTY_WINDOW` (ativa por omissão), o limite de duty cycle passa a usar uma janela deslizante de 1 h com slots de 1 min, em vez do token bucket. O token bucket permitia até ~2× o limite em qualquer hora (10% configurado chegava a ~20%) e cada envio podia exceder o orçamento. Agora o tempo de antena em qualquer hora nunca excede o limite.
+- CLI: `set dutycycle` aceita apenas 10-100%. Valores abaixo de 10% eram limitados a 10% (`af` 9) no reinício sem aviso, e a 1% os pacotes expiravam na fila (60 s) antes de poderem ser enviados.
 
 - LILYGO T-LORA V2.1-1.6: Removido o botão de utilizador (`PIN_USER_BTN`, GPIO0), inexistente nesta placa. Um GPIO0 flutuante podia ser lido como pressão longa e desligar o repetidor (`Powering Off`) logo após o arranque.
 - CLIENTE: Migração do limiar de interferência RSSI para modo automático (`AUTO`) ao carregar preferências com valor `0` quando `LUSOFW_RADIO_AUTO_THRESH` está ativo.

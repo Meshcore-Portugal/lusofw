@@ -5,6 +5,9 @@
 #include <Packet.h>
 #include <Utils.h>
 #include <string.h>
+#ifdef LUSOFW_DUTY_WINDOW
+#include <lusofw/DutyCycleWindow.h>
+#endif
 
 namespace mesh {
 
@@ -130,6 +133,9 @@ class Dispatcher {
   unsigned long tx_budget_ms;
   unsigned long last_budget_update;
   unsigned long duty_cycle_window_ms;
+#ifdef LUSOFW_DUTY_WINDOW
+  DutyCycleWindow dc_window;
+#endif
 
   void processRecvPacket(Packet* pkt);
   void updateTxBudget();

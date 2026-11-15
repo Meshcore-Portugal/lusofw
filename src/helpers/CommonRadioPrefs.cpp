@@ -87,8 +87,8 @@ bool CommonRadioPrefs::handleCommand(const char* command, uint32_t sender_timest
   }
   if (memcmp(command, "set dutycycle ", 14) == 0) {
     float dc = atof(&command[14]);
-    if (dc < 1 || dc > 100) {
-      strcpy(reply, "ERROR: dutycycle must be 1-100");
+    if (dc < 10 || dc > 100) {  // af is clamped to 0..9 on load: below 10% would not survive a reboot
+      strcpy(reply, "ERROR: dutycycle must be 10-100");
     } else {
       setAirtimeFactor((100.0f / dc) - 1.0f);
       float actual = 100.0f / (getAirtimeFactor() + 1.0f);
