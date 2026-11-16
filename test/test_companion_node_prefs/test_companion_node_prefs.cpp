@@ -75,7 +75,6 @@ TEST(CompanionNodePrefs, RxGainSettingsRoundTripIndependently) {
   EXPECT_EQ(0, loaded.radio_fem_rxgain);
   EXPECT_EQ(1, loaded.radio_fem_txgain);
 }
-#endif
 
 TEST(CompanionNodePrefs, InterferenceThresholdRoundTrip) {
   NodePrefs saved;
@@ -104,6 +103,7 @@ TEST(CompanionNodePrefs, MissingInterferenceThresholdKeepsDefault) {
   EXPECT_EQ(0, loaded.interference_threshold);
 #endif
 }
+#endif
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
