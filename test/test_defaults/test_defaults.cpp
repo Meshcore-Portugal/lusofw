@@ -69,8 +69,8 @@ TEST(Defaults, BaselineOnFreshInstall) {
   EXPECT_EQ(prefs.advert_interval, 0);
   EXPECT_EQ(prefs.flood_advert_interval, 23);
   EXPECT_EQ(prefs.path_hash_mode, 1);
-  EXPECT_EQ(prefs.loop_detect, LOOP_DETECT_MODERATE);  // 5dc588d5
-  EXPECT_EQ(prefs.cad_enabled, 0);  // a9aa006b: CAD off below 2026.9.1
+  EXPECT_EQ(prefs.loop_detect, LOOP_DETECT_MINIMAL);
+  EXPECT_EQ(prefs.cad_enabled, 1);
   EXPECT_EQ(prefs.advert_loc_policy, ADVERT_LOC_PREFS);
   EXPECT_EQ(prefs.radio_manual, 0);  // pristine prefs do not latch
 }
