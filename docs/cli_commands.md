@@ -447,7 +447,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Parameters:**
 - `0`: Tier 0, backbone or infrastructure. `direct.txdelay` 2.0, `rxdelay` 3.0, `txdelay` 2.0.
-- `1`: Tier 1, regional or elevated. `direct.txdelay` 1.0, `rxdelay` 3.0, `txdelay` 1.5.
+- `1`: Tier 1, regional or high ground. `direct.txdelay` 1.0, `rxdelay` 3.0, `txdelay` 1.5.
 - `2`: Tier 2, local. `direct.txdelay` 0.4, `rxdelay` 3.0, `txdelay` 0.8.
 - `3`: Tier 3, personal or indoor. `direct.txdelay` 0.1, `rxdelay` 3.0, `txdelay` 0.3.
 
@@ -475,7 +475,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ### Routing
 
-**Note:** On every firmware version change, lusofw resets the following settings to their firmware defaults, discarding any user-set values: `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval` and `advert.interval`.
+**Note:** On every firmware version change, lusofw repeaters reset these settings to their firmware defaults, discarding any user-set values: `advert.interval`, `advert.loc.policy`, `flood.advert.interval`, `loop.detect` and `path.hash.mode`. See [defaults migration](lusofw.md#defaults-migration).
 
 #### View or change this node's repeat flag
 **Usage:**
@@ -623,7 +623,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - `1`–`254`: fixed threshold in dB above the noise floor
   - `255` (`auto`): derive the threshold from the current spreading factor (SF7→8, SF8→10, SF9→11, SF10→14, SF11/12→16 dB above the noise floor). Re-evaluated every ~2 s, so runtime SF changes (`tempradio`) and their auto-revert are followed automatically.
 
-**Default:** `0`
+**Default:** `auto` on repeaters and companions (a companion turns `0` back into `auto` at boot), `0` on room servers and sensors
 
 ---
 
