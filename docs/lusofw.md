@@ -133,7 +133,8 @@ These apply to every firmware type, since they live in `src/`.
 
 - Outbound packets that wait in the TX queue longer than 60 s are dropped and removed from the dedup table, so a later copy can still be relayed. Override with `MAX_PACKET_QUEUE_AGE_MS`.
 - After a busy channel the retry delay is a random value from 120 to 360 ms. Upstream picks 120, 240 or 360 ms, which can keep nearby nodes in lock-step.
-- Defensive null and double-free checks in the packet pool.
+
+The packet pool also ignores null packets and logs a possible double free.
 
 ## Neighbours
 
