@@ -429,7 +429,8 @@ bool NRF52Board::startOTAUpdate(const char *id, char reply[]) {
     // Defer reset so the CLI reply can still go out.
     gdfu_reset_timer.begin(2000, gdfu_reset_cb, NULL, false);
     gdfu_reset_timer.start();
-    strcpy(reply, "OK - rebooting into bootloader");
+    // Same value the gdfu bootloader beacons as target_id (low 32 bits of the BLE MAC).
+    sprintf(reply, "OK: 0x%08lx", (unsigned long)NRF_FICR->DEVICEADDR[0]);
     return true;
   }
 #endif
