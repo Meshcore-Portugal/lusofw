@@ -142,7 +142,7 @@ Repeater neighbours not heard for 48 hours are removed from the list.
 
 ## Location in adverts
 
-When the firmware is built without GPS, which is the case for all lusofw repeaters except the ThinkNode M4, adverts always carry the configured latitude and longitude. `advert.loc.policy none` does not hide them. Upstream honours the policy in all builds.
+Without GPS, adverts carry the configured latitude and longitude, as upstream does with the default `prefs` policy. `buildAdvertData` skips the policy check in these builds, but the only command that changes the policy (`gps advert`) is not compiled in either, so the result is the same.
 
 ## Build changes
 
