@@ -105,6 +105,30 @@ TEST(CompanionNodePrefs, MissingInterferenceThresholdKeepsDefault) {
 }
 #endif
 
+// int_thr_mig persists, so the one-shot int_thr 0 -> auto migration in
+// DataStore::loadPrefs runs once and a later explicit 0 survives reboots.
+TEST(CompanionNodePrefs, IntThreshMigrationFlagRoundTrip) {
+  NodePrefs saved;
+  saved.interference_threshold = 0;
+  saved.int_thr_mig = 1;
+  CaptureStream output;
+  ASSERT_TRUE(saved.saveSerial(output));
+
+  ReplayStream input(output.text().c_str());
+  NodePrefs loaded;
+  loaded.int_thr_mig = 0;
+  loaded.interference_threshold = 7;
+  ASSERT_TRUE(loaded.loadSerial(input));
+  EXPECT_EQ(1, loaded.int_thr_mig);
+  EXPECT_EQ(0, loaded.interference_threshold);
+
+  ReplayStream legacy("{radio:{int_thr:0}}");  // prefs from before the flag
+  NodePrefs old;
+  old.int_thr_mig = 0;
+  ASSERT_TRUE(old.loadSerial(legacy));
+  EXPECT_EQ(0, old.int_thr_mig);
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

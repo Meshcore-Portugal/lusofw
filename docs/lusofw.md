@@ -30,7 +30,7 @@ These are one-shot migrations. They run once, when upgrading from an older versi
 | 2026.9.1-rc4 | `radio_manual` latch inferred: set if `af` is not 1.0 or `tx` is not the board default. |
 | 2026.9.1 | `cad` turned off. `int.thresh` set to `auto` (255) if it was `0`. RX boosted gain turned on (SX1262/SX1268). The legacy `#portugal` region is removed. |
 
-The companion firmware does its own rewrite, on every boot: if `int_thr` is `0` when prefs load, it becomes `auto` and is saved. A companion cannot keep `int.thresh` at `0`.
+The companion firmware runs its own one-shot migration: the first time it loads prefs saved before this flag existed, an `int_thr` of `0` becomes `auto`. It then records `int_thr_mig` in the prefs, so a `0` set later stays off.
 
 ## Repeater tiers
 

@@ -55,6 +55,7 @@ public:
   char default_scope_name[31];
   uint8_t default_scope_key[16];
   int8_t tz_offset = 0;
+  uint8_t int_thr_mig = 1;  // lusofw: 0 = one-shot int_thr 0 -> auto migration still pending
 #ifdef ENABLE_WIFI_INTERFACE
   #ifndef WIFI_SSID
     #define WIFI_SSID ""
@@ -173,6 +174,7 @@ private:
       def("tel_loc", _parent->telemetry_mode_loc);
       def("tel_env", _parent->telemetry_mode_env);
       def("tz_offset", _parent->tz_offset);
+      def("int_thr_mig", _parent->int_thr_mig);
     }
   public:
     CompanionPrefs(NodePrefs* parent) : _parent(parent) { }

@@ -196,11 +196,14 @@ void DataStore::loadPrefs(NodePrefs& prefs) {
   if (_fs->exists("/prefs.json")) {
     File file = openRead(_fs, "/prefs.json");
     if (file) {
+      prefs.int_thr_mig = 0;                  // stays 0 if the file predates the flag
       bool loaded = prefs.loadSerial(file);   // new Serial prefs
       file.close();
 #if defined(LUSOFW_RADIO_AUTO_THRESH)
-      if (loaded && prefs.interference_threshold == 0) {
-        prefs.interference_threshold = InterferenceAuto::AUTO;
+      // One-shot: a 0 from older prefs becomes auto; a 0 set after that stays.
+      if (loaded && !prefs.int_thr_mig) {
+        if (prefs.interference_threshold == 0) prefs.interference_threshold = InterferenceAuto::AUTO;
+        prefs.int_thr_mig = 1;
         savePrefs(prefs);
       }
 #endif
