@@ -38,4 +38,5 @@ struct NodePrefs {
   uint8_t rx_boosted_gain = 0;
   uint8_t advert_loc_policy = 0;
   uint8_t radio_manual = 0;
+  uint8_t role = 0xFF;
 };

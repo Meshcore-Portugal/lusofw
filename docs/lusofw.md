@@ -46,7 +46,7 @@ A tier sets the three retransmit delay factors in one go. Higher sites wait long
 | 3 | Personal, indoor | 0.1 | 3.0 | 0.3 |
 | upstream | | 0.3 | 0.0 | 0.5 |
 
-A node with no stored tier is assigned tier 3 at boot. On a fresh install the 2026.7.1 migration above then runs and puts the upstream delays back, so `get tier` reports `3` while the delays are `txdelay` 0.5, `rxdelay` 0.0, `direct.txdelay` 0.3. Nodes upgrading from 2026.7.1 or later with no stored tier skip that migration and do get the tier 3 values. A node that already has a tier keeps it. Run `set tier 3` (or your real tier) once after flashing a new node.
+A node with no stored tier gets tier 3 at boot, after the defaults migration, so fresh installs run the tier 3 delays. A node that already has a tier keeps it. Nodes installed fresh on an older build may report tier 3 while running the upstream delays. Run `set tier 3` (or your real tier) once to fix them.
 
 ## Automatic regions
 

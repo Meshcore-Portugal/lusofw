@@ -28,7 +28,7 @@ Based on MeshCore v1.18.0. Values are for the repeater unless the "Applies to" c
 | [`int.thresh`](docs/lusofw.md#interference-threshold-auto-mode) | `0` (off) | `auto` (8 to 16 dB by SF) | repeater, companion | repeater: once. Companion: every boot, `0` is turned back into `auto` |
 | [`af` / duty cycle](docs/lusofw.md#radio-regulation) | `1.0` (50%) | `9.0` (10%) when located in Europe | repeater | until set by hand |
 | [`tx` power](docs/lusofw.md#radio-regulation) | board default | capped at 27, 14 or 10 dBm by EU sub-band | repeater | until set by hand |
-| [`txdelay` / `rxdelay` / `direct.txdelay`](docs/lusofw.md#repeater-tiers) | 0.5 / 0.0 / 0.3 | tier 3: 0.3 / 3.0 / 0.1 for nodes with no stored tier upgrading from 2026.7.1 or later; fresh installs keep upstream values | repeater | once |
+| [`txdelay` / `rxdelay` / `direct.txdelay`](docs/lusofw.md#repeater-tiers) | 0.5 / 0.0 / 0.3 | tier 3: 0.3 / 3.0 / 0.1 for nodes with no stored tier | repeater | once |
 | [Node name](docs/lusofw.md#build-changes) | `repeater`, `Test BBS`, `sensor` | `lusofw-<version>` | repeater, room, sensor | build |
 | [Advert on boot](docs/lusofw.md#build-changes) | on | off | repeater, room, sensor | build |
 | [GPS](docs/lusofw.md#build-changes) | built into many variants | removed from most variants; kept on ThinkNode M4 and on the Heltec T1, Heltec T114, ThinkNode M8 and Muzi Base superIO companions | all | build |

@@ -1025,24 +1025,27 @@ void MyMesh::begin(FILESYSTEM *fs) {
   // load persisted prefs
   _cli.loadPrefs(_fs);
 
+  char oldVersion[32];
+  LusoDefaults::readVersion(_fs, oldVersion, sizeof(oldVersion));
+  // applyDefaults loads/saves the region map itself when a migration fires.
+  // A blocked migration returns false: the version is not stamped and the
+  // node boots normally, so the migration retries on the next boot (the CLI
+  // stays reachable to clear the blocker) instead of being silently
+  // consumed by the version stamp.
+  bool migrated = strcmp(oldVersion, FIRMWARE_VERSION) != 0 &&
+                  LusoDefaults::applyDefaults(_prefs, region_map, _fs, oldVersion);
+
+  // Tier after defaults: a migration that rewrites the delay factors must not
+  // leave a node reporting tier 3 while running other delays.
   if (_prefs.role > 3) {
     RepeaterRole::apply(_prefs, 3);
   }
 
-  char oldVersion[32];
-  LusoDefaults::readVersion(_fs, oldVersion, sizeof(oldVersion));
-  if (strcmp(oldVersion, FIRMWARE_VERSION) != 0) {
-    // applyDefaults loads/saves the region map itself when a migration fires.
-    // A blocked migration returns false: the version is not stamped and the
-    // node boots normally, so the migration retries on the next boot (the CLI
-    // stays reachable to clear the blocker) instead of being silently
-    // consumed by the version stamp.
-    if (LusoDefaults::applyDefaults(_prefs, region_map, _fs, oldVersion)) {
-      _cli.savePrefs(_fs);
-      LusoDefaults::writeVersion(_fs, FIRMWARE_VERSION);
-      delay(1000);
-      board.reboot();  // doesn't return
-    }
+  if (migrated) {
+    _cli.savePrefs(_fs);
+    LusoDefaults::writeVersion(_fs, FIRMWARE_VERSION);
+    delay(1000);
+    board.reboot();  // doesn't return
   }
 
   acl.load(_fs, self_id);
