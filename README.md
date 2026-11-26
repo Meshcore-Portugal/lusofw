@@ -25,7 +25,7 @@ Based on MeshCore v1.18.0. Values are for the repeater unless the "Applies to" c
 | [`flood.advert.interval`](docs/lusofw.md#smart-adverts) | `47` h, counted from boot | `23`: one fixed slot per node in a 23 h UTC window | repeater | every upgrade |
 | [`loop.detect`](docs/lusofw.md#loop-detection) | `minimal` | `moderate` | repeater | every upgrade |
 | [`path.hash.mode`](docs/lusofw.md#2-byte-path-hashes) | `0` (1 byte) | `1` (2 bytes) | repeater | every upgrade |
-| [`int.thresh`](docs/lusofw.md#interference-threshold-auto-mode) | `0` (off) | `auto` (8 to 16 dB by SF) | repeater, companion | repeater: once. Companion: every boot, `0` is turned back into `auto` |
+| [`int.thresh`](docs/lusofw.md#interference-threshold-auto-mode) | `0` (off) | `auto` (8 to 16 dB by SF) | repeater, companion | once |
 | [`af` / duty cycle](docs/lusofw.md#radio-regulation) | `1.0` (50%) | `9.0` (10%) when located in Europe | repeater | until set by hand |
 | [`tx` power](docs/lusofw.md#radio-regulation) | board default | capped at 27, 14 or 10 dBm by EU sub-band | repeater | until set by hand |
 | [`txdelay` / `rxdelay` / `direct.txdelay`](docs/lusofw.md#repeater-tiers) | 0.5 / 0.0 / 0.3 | tier 3: 0.3 / 3.0 / 0.1 for nodes with no stored tier | repeater | once |

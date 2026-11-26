@@ -623,7 +623,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - `1`–`254`: fixed threshold in dB above the noise floor
   - `255` (`auto`): derive the threshold from the current spreading factor (SF7→8, SF8→10, SF9→11, SF10→14, SF11/12→16 dB above the noise floor). Re-evaluated every ~2 s, so runtime SF changes (`tempradio`) and their auto-revert are followed automatically.
 
-**Default:** `auto` on repeaters and companions (a companion turns `0` back into `auto` at boot), `0` on room servers and sensors
+**Default:** `auto` on repeaters and companions, `0` on room servers and sensors
 
 ---
 
