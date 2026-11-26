@@ -15,7 +15,7 @@ This is not intended to be a hard fork of the upstream repository. Instead, luso
 
 ## Differences from upstream
 
-Based on MeshCore v1.17.1. Values are for the repeater unless the "Applies to" column says otherwise. Each link goes to the full explanation in [docs/lusofw.md](docs/lusofw.md).
+Based on MeshCore v1.18.0. Values are for the repeater unless the "Applies to" column says otherwise. Each link goes to the full explanation in [docs/lusofw.md](docs/lusofw.md).
 
 ### Changed defaults
 
@@ -23,15 +23,15 @@ Based on MeshCore v1.17.1. Values are for the repeater unless the "Applies to" c
 |---|---|---|---|---|
 | [`advert.interval`](docs/lusofw.md#smart-adverts) | `1` (zero-hop advert every 2 min) | `0` (off) | repeater | every upgrade |
 | [`flood.advert.interval`](docs/lusofw.md#smart-adverts) | `47` h, counted from boot | `23`: one fixed slot per node in a 23 h UTC window | repeater | every upgrade |
-| [`loop.detect`](docs/lusofw.md#loop-detection) | `off` | `moderate` | repeater | every upgrade |
+| [`loop.detect`](docs/lusofw.md#loop-detection) | `minimal` | `moderate` | repeater | every upgrade |
 | [`path.hash.mode`](docs/lusofw.md#2-byte-path-hashes) | `0` (1 byte) | `1` (2 bytes) | repeater | every upgrade |
-| [`int.thresh`](docs/lusofw.md#interference-threshold-auto-mode) | `0` (off); ignored on companion | `auto` (8 to 16 dB by SF) | repeater, companion | repeater: once. Companion: every boot, `0` is turned back into `auto` |
+| [`int.thresh`](docs/lusofw.md#interference-threshold-auto-mode) | `0` (off) | `auto` (8 to 16 dB by SF) | repeater, companion | repeater: once. Companion: every boot, `0` is turned back into `auto` |
 | [`af` / duty cycle](docs/lusofw.md#radio-regulation) | `1.0` (50%) | `9.0` (10%) when located in Europe | repeater | until set by hand |
 | [`tx` power](docs/lusofw.md#radio-regulation) | board default | capped at 27, 14 or 10 dBm by EU sub-band | repeater | until set by hand |
-| [`txdelay` / `rxdelay` / `direct.txdelay`](docs/lusofw.md#repeater-tiers) | 0.5 / 0.0 / 0.3 | tier 3: 0.3 / 3.0 / 0.1 on upgrades from 2026.7.1 or later; fresh installs keep upstream values | repeater | once |
+| [`txdelay` / `rxdelay` / `direct.txdelay`](docs/lusofw.md#repeater-tiers) | 0.5 / 0.0 / 0.3 | tier 3: 0.3 / 3.0 / 0.1 for nodes with no stored tier upgrading from 2026.7.1 or later; fresh installs keep upstream values | repeater | once |
 | [Node name](docs/lusofw.md#build-changes) | `repeater`, `Test BBS`, `sensor` | `lusofw-<version>` | repeater, room, sensor | build |
 | [Advert on boot](docs/lusofw.md#build-changes) | on | off | repeater, room, sensor | build |
-| [GPS](docs/lusofw.md#build-changes) | built into many variants | removed, except Heltec T1 and T114 companion | all | build |
+| [GPS](docs/lusofw.md#build-changes) | built into many variants | removed from most variants; kept on ThinkNode M4 and on the Heltec T1, Heltec T114, ThinkNode M8 and Muzi Base superIO companions | all | build |
 | [Sensor drivers](docs/lusofw.md#build-changes) | 14 | AHTx0, BME280, BMP280, INA3221 (+SHTC3 on RAK) | all | build |
 
 "Every upgrade" means the value is reset on each firmware version change and anything you set by hand is lost. "Once" means a one-shot migration; your later changes stick. See [defaults migration](docs/lusofw.md#defaults-migration).
@@ -52,7 +52,7 @@ Hardware listen-before-talk (`cad`) is off in both firmwares. The duty-cycle tok
 | [CAD retry jitter](docs/lusofw.md#core-packet-handling) | Busy-channel retry is random 120 to 360 ms instead of 3 fixed steps | all |
 | [Neighbour expiry](docs/lusofw.md#neighbours) | Forgets neighbours not heard for 48 h | repeater |
 | [Location in adverts](docs/lusofw.md#location-in-adverts) | Without GPS, adverts always carry lat/lon; `advert.loc.policy none` is ignored | repeater, room, sensor |
-| [Board fixes](docs/lusofw.md#board-fixes) | nRF52 DFU register, T114 direct OTA, T-LoRa V2.1 phantom button | listed boards |
+| [Board fixes](docs/lusofw.md#board-fixes) | nRF52 DFU register, nRF52 direct GDFU OTA, T-LoRa V2.1 phantom button | listed boards |
 | [Display](docs/lusofw.md#display) | Portuguese boot logo, LiPo battery curve | boards with a screen |
 
 ### Links

@@ -501,7 +501,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - `2`: 3 Byte hash size (16,777,216 unique ids)[21 max flood]
   - `3`: DO NOT USE (Reserved) 
 
-**Default:** `0`
+**Default:** `1` on repeaters (reset on every firmware upgrade), `0` elsewhere
 
 **Note:** the 'path.hash.mode' sets the low-level ID/hash encoding size used when the repeater adverts. This setting has no impact on what packet ID/hash size this repeater forwards, all sizes should be forwarded on firmware >= 1.14. This feature was added in firmware 1.14
 
@@ -521,7 +521,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - `moderate`: packets are dropped if repeater's ID/hash appears 2 or more times (1-byte), 1 or more (2-byte), 1 or more (3-byte)
   - `strict`: packets are dropped if repeater's ID/hash appears 1 or more times (1-byte), 1 or more (2-byte), 1 or more (3-byte)
   
-**Default:** `off`
+**Default:** `moderate` on repeaters (reset on every firmware upgrade)
 
 **Note:** When it is enabled, repeaters will now reject flood packets which look like they are in a loop. This has been happening recently in some meshes when there is just a single 'bad' repeater firmware out there (probably some forked or custom firmware). If the payload is messed with, then forwarded, the same packet ends up causing a packet storm, repeated up to the max 64 hops. This feature was added in firmware 1.14
 
@@ -673,7 +673,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `hours`: Interval in hours (3-168)
 
-**Default:** `12` (Repeater) - `0` (Sensor)
+**Default:** `23` (Repeater, reset on every firmware upgrade) - `47` (Room Server) - `0`, disabled (Sensor)
 
 ---
 

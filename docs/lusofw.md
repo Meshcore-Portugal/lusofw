@@ -1,6 +1,6 @@
 # How lusofw differs from MeshCore
 
-This page lists every behaviour change lusofw makes on top of upstream MeshCore. The current base is MeshCore v1.17.1 (`d9296435`). The [README](../README.md#differences-from-upstream) has the summary tables; each section here explains one row.
+This page lists every behaviour change lusofw makes on top of upstream MeshCore. The current base is MeshCore v1.18.0 (`81dbae59`). The [README](../README.md#differences-from-upstream) has the summary tables; each section here explains one row. A PR that changes one of these behaviours updates this page and the README tables too.
 
 Unless stated otherwise, a change applies to the repeater firmware only. Companion, room server and sensor firmware keep upstream behaviour except where a section says so.
 
@@ -46,7 +46,7 @@ A tier sets the three retransmit delay factors in one go. Higher sites wait long
 | 3 | Personal, indoor | 0.1 | 3.0 | 0.3 |
 | upstream | | 0.3 | 0.0 | 0.5 |
 
-A node with no stored tier is assigned tier 3 at boot. On a fresh install the 2026.7.1 migration above then runs and puts the upstream delays back, so `get tier` reports `3` while the delays are `txdelay` 0.5, `rxdelay` 0.0, `direct.txdelay` 0.3. Upgrades from 2026.7.1 or later skip that migration and do get the tier 3 values. Run `set tier 3` (or your real tier) once after flashing a new node.
+A node with no stored tier is assigned tier 3 at boot. On a fresh install the 2026.7.1 migration above then runs and puts the upstream delays back, so `get tier` reports `3` while the delays are `txdelay` 0.5, `rxdelay` 0.0, `direct.txdelay` 0.3. Nodes upgrading from 2026.7.1 or later with no stored tier skip that migration and do get the tier 3 values. A node that already has a tier keeps it. Run `set tier 3` (or your real tier) once after flashing a new node.
 
 ## Automatic regions
 
@@ -60,7 +60,7 @@ The repeater works out its regions and creates them in the region map with no ma
 
 A match in Portugal creates `#europe`, `#pt`, the district and macro region, plus `#pt-433` or `#pt-868` from the current frequency. Regions you created yourself are never touched. Only Portugal is compiled in; Spain and Brazil tables exist but are disabled in `AutoRegions.cpp`.
 
-Hardware GPS is not used. lusofw removes GPS support from repeaters.
+Hardware GPS is not used, even on the ThinkNode M4, the only repeater build that still includes it.
 
 Regions are re-evaluated when you change the name, coordinates, location policy or frequency.
 
@@ -117,11 +117,11 @@ Build flag: `LUSOFW_RADIO_AUTO_THRESH`. Code: `src/lusofw/InterferenceAuto.h`. A
 
 `set int.thresh 255` (shown as `auto`) derives the RSSI listen-before-talk threshold from the live spreading factor: SF7 8 dB, SF8 10 dB, SF9 11 dB, SF10 14 dB, SF11 and SF12 16 dB above the noise floor.
 
-Upstream's companion firmware ignores `int.thresh` and always returns `0`. lusofw applies it and defaults it to `auto`. Repeaters get `auto` through the migration. Room server and sensor keep upstream's default of `0` but accept `255`.
+Upstream's companion firmware stores `int.thresh` with a default of `0` (off). lusofw applies it and defaults it to `auto`. Repeaters get `auto` through the migration. Room server and sensor keep upstream's default of `0` but accept `255`.
 
 ## Loop detection
 
-Upstream ships `loop.detect` off. lusofw sets it to `moderate` on every version change. Moderate stops forwarding a flood packet whose path already contains the repeater's own hash twice (1-byte hashes) or once (2- and 3-byte hashes).
+Upstream ships `loop.detect` at `minimal`. lusofw sets it to `moderate` on every version change. Moderate stops forwarding a flood packet whose path already contains the repeater's own hash twice (1-byte hashes) or once (2- and 3-byte hashes).
 
 ## 2-byte path hashes
 
@@ -142,13 +142,13 @@ Repeater neighbours not heard for 48 hours are removed from the list.
 
 ## Location in adverts
 
-When the firmware is built without GPS, which is the case for all lusofw repeaters, adverts always carry the configured latitude and longitude. `advert.loc.policy none` does not hide them. Upstream honours the policy in all builds.
+When the firmware is built without GPS, which is the case for all lusofw repeaters except the ThinkNode M4, adverts always carry the configured latitude and longitude. `advert.loc.policy none` does not hide them. Upstream honours the policy in all builds.
 
 ## Build changes
 
 - Default node name is `lusofw-<version>` for repeater, room server and sensor, instead of `repeater`, `Test BBS` and `sensor`. Per-variant names are removed with `build_unflags`.
 - `ENABLE_ADVERT_ON_BOOT` is off: repeaters, room servers and sensors do not advertise on boot.
-- GPS is removed from most variants. The Heltec T1 and T114 companion builds keep it.
+- GPS is removed from most variants. ThinkNode M4 builds keep it, as do the Heltec T1, Heltec T114, ThinkNode M8 and Muzi Base superIO companion builds.
 - Sensor drivers are cut to AHTx0, BME280, BMP280 and INA3221. SHTC3 is added on RAK4631 and RAK3112 (RAK1901). Upstream also builds SHT4x, LPS22HB, INA219, INA226, INA260, MLX90614, VL53L0X, BME680 and BMP085.
 - Extra build targets: Heltec V4 RS232 bridge, Heltec V4 R8 ESP-NOW bridge, SenseCap Solar RS232 bridge. The bridges themselves are upstream code.
 - `MESH_DEBUG` and `LUSOFW_RADIO_DEBUG` are on in `platformio.ini`. Release builds strip them with `DISABLE_DEBUG=1`.
@@ -157,7 +157,8 @@ When the firmware is built without GPS, which is the case for all lusofw repeate
 ## Board fixes
 
 - nRF52: clears the GPREGRET register at boot and before power-off, so a stale DFU value cannot drop the device into the bootloader.
-- Heltec T114: `start ota` reboots straight into a `gdfu-` bootloader (`LUSOFW_OTA_DIRECT`). True-colour Portuguese boot logo and DejaVu Sans font.
+- nRF52: with a `gdfu-` bootloader, `start ota` reboots straight into it (`LUSOFW_OTA_DIRECT`, on for all builds). With any other bootloader it falls back to BLE DFU.
+- Heltec T114: True-colour Portuguese boot logo and DejaVu Sans font.
 - LilyGo T-LoRa V2.1-1.6: user button removed. GPIO0 floats on this board and could be read as a long press that powers the repeater off.
 - LilyGo T-Echo Lite: uses the SX126x LDO regulator.
 
