@@ -125,7 +125,7 @@ Upstream ships `loop.detect` at `minimal`. lusofw sets it to `moderate` on every
 
 ## 2-byte path hashes
 
-Upstream repeaters use 1-byte path hashes (`path.hash.mode 0`). lusofw uses 2 bytes (`path.hash.mode 1`) on repeaters, which cuts false matches between repeaters that share a first key byte. Companion firmware keeps the upstream default.
+Upstream repeaters use 1-byte path hashes (`path.hash.mode 0`). lusofw uses 2 bytes (`path.hash.mode 1`) on repeaters, which cuts false matches between repeaters that share a first key byte. Companion firmware also defaults to 2 bytes on a fresh install. Companions that already saved prefs keep their stored value, which the app can change.
 
 ## Core packet handling
 

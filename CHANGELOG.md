@@ -15,6 +15,7 @@ main@81dbae592ffad40b4212bc0b37e82b38da08f4bc
 
 - REPETIDOR: Numa instalação nova, o tier 3 é aplicado depois da migração de predefinições. Antes, a migração de 2026.7.1 repunha os atrasos do upstream e o `get tier` reportava `3` com valores errados. Os nós já afectados devem correr `set tier 3` (ou o tier correcto) uma vez.
 - CLIENTE: A migração de `int.thresh` de `0` para `auto` corre apenas uma vez (flag `int_thr_mig` nos prefs). Antes corria em cada arranque e um `0` explícito nunca ficava guardado.
+- CLIENTE: Repostos os hashes de caminho de 2 bytes (`path_hash_mode=1`) como predefinição em instalações novas, conforme anunciado na 2026.7.1. A predefinição perdeu-se na reescrita dos prefs do companion. Os companions com prefs guardados mantêm o valor actual.
 - LILYGO T-LORA V2.1-1.6: Removido o botão de utilizador (`PIN_USER_BTN`, GPIO0), inexistente nesta placa. Um GPIO0 flutuante podia ser lido como pressão longa e desligar o repetidor (`Powering Off`) logo após o arranque.
 - CLIENTE: Migração do limiar de interferência RSSI para modo automático (`AUTO`) ao carregar preferências com valor `0` quando `LUSOFW_RADIO_AUTO_THRESH` está ativo.
 

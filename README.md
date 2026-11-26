@@ -24,7 +24,7 @@ Based on MeshCore v1.18.0. Values are for the repeater unless the "Applies to" c
 | [`advert.interval`](docs/lusofw.md#smart-adverts) | `1` (zero-hop advert every 2 min) | `0` (off) | repeater | every upgrade |
 | [`flood.advert.interval`](docs/lusofw.md#smart-adverts) | `47` h, counted from boot | `23`: one fixed slot per node in a 23 h UTC window | repeater | every upgrade |
 | [`loop.detect`](docs/lusofw.md#loop-detection) | `minimal` | `moderate` | repeater | every upgrade |
-| [`path.hash.mode`](docs/lusofw.md#2-byte-path-hashes) | `0` (1 byte) | `1` (2 bytes) | repeater | every upgrade |
+| [`path.hash.mode`](docs/lusofw.md#2-byte-path-hashes) | `0` (1 byte) | `1` (2 bytes) | repeater, companion | repeater: every upgrade. Companion: fresh install |
 | [`int.thresh`](docs/lusofw.md#interference-threshold-auto-mode) | `0` (off) | `auto` (8 to 16 dB by SF) | repeater, companion | once |
 | [`af` / duty cycle](docs/lusofw.md#radio-regulation) | `1.0` (50%) | `9.0` (10%) when located in Europe | repeater | until set by hand |
 | [`tx` power](docs/lusofw.md#radio-regulation) | board default | capped at 27, 14 or 10 dBm by EU sub-band | repeater | until set by hand |
