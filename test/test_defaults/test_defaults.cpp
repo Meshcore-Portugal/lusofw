@@ -13,6 +13,7 @@
 
 #define private public  // test access to LusoDefaults::versionLessThan
 #include <lusofw/Defaults.h>
+#include <lusofw/RepeaterRole.h>
 #undef private
 
 #ifndef LORA_TX_POWER
@@ -58,6 +59,21 @@ TEST(Defaults, VersionOrdering) {
     bool got = LusoDefaults::versionLessThan(c.v, c.t);
     EXPECT_EQ(got, c.want) << (c.v ? c.v : "(null)") << " < " << c.t;
   }
+}
+
+// MyMesh::begin order: applyDefaults first, then tier 3 for nodes with no
+// stored tier, so a fresh install runs tier 3 delays, not upstream ones.
+TEST(Defaults, FreshInstallTierAppliedAfterDefaults) {
+  TransportKeyStore tks;
+  RegionMap rm(tks);
+  FILESYSTEM fs;
+  NodePrefs prefs = MakePrefs();
+  ASSERT_TRUE(LusoDefaults::applyDefaults(prefs, rm, &fs, ""));
+  if (prefs.role > 3) RepeaterRole::apply(prefs, 3);
+  EXPECT_EQ(prefs.role, 3);
+  EXPECT_FLOAT_EQ(prefs.tx_delay_factor, 0.3f);
+  EXPECT_FLOAT_EQ(prefs.rx_delay_base, 3.0f);
+  EXPECT_FLOAT_EQ(prefs.direct_tx_delay_factor, 0.1f);
 }
 
 TEST(Defaults, BaselineOnFreshInstall) {
