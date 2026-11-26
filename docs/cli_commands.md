@@ -447,7 +447,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 **Parameters:**
 - `0`: Tier 0, backbone or infrastructure. `direct.txdelay` 2.0, `rxdelay` 3.0, `txdelay` 2.0.
-- `1`: Tier 1, regional or elevated. `direct.txdelay` 1.0, `rxdelay` 3.0, `txdelay` 1.5.
+- `1`: Tier 1, regional or high ground. `direct.txdelay` 1.0, `rxdelay` 3.0, `txdelay` 1.5.
 - `2`: Tier 2, local. `direct.txdelay` 0.4, `rxdelay` 3.0, `txdelay` 0.8.
 - `3`: Tier 3, personal or indoor. `direct.txdelay` 0.1, `rxdelay` 3.0, `txdelay` 0.3.
 
@@ -475,7 +475,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ### Routing
 
-**Note:** On every firmware version change, lusofw resets the following settings to their firmware defaults, discarding any user-set values: `cad`, `loop.detect`, `rxdelay`, `txdelay`, `direct.txdelay`, `path.hash.mode`, `int.thresh`, `flood.advert.interval` and `advert.interval`.
+**Note:** On every firmware version change, lusofw repeaters reset these settings to their firmware defaults, discarding any user-set values: `advert.interval`, `advert.loc.policy`, `flood.advert.interval`, `loop.detect` and `path.hash.mode`. See [defaults migration](lusofw.md#defaults-migration).
 
 #### View or change this node's repeat flag
 **Usage:**
@@ -501,7 +501,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - `2`: 3 Byte hash size (16,777,216 unique ids)[21 max flood]
   - `3`: DO NOT USE (Reserved) 
 
-**Default:** `0`
+**Default:** `1` on repeaters (reset on every firmware upgrade), `0` elsewhere
 
 **Note:** the 'path.hash.mode' sets the low-level ID/hash encoding size used when the repeater adverts. This setting has no impact on what packet ID/hash size this repeater forwards, all sizes should be forwarded on firmware >= 1.14. This feature was added in firmware 1.14
 
@@ -521,7 +521,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - `moderate`: packets are dropped if repeater's ID/hash appears 2 or more times (1-byte), 1 or more (2-byte), 1 or more (3-byte)
   - `strict`: packets are dropped if repeater's ID/hash appears 1 or more times (1-byte), 1 or more (2-byte), 1 or more (3-byte)
   
-**Default:** `off`
+**Default:** `moderate` on repeaters (reset on every firmware upgrade)
 
 **Note:** When it is enabled, repeaters will now reject flood packets which look like they are in a loop. This has been happening recently in some meshes when there is just a single 'bad' repeater firmware out there (probably some forked or custom firmware). If the payload is messed with, then forwarded, the same packet ends up causing a packet storm, repeated up to the max 64 hops. This feature was added in firmware 1.14
 
@@ -623,7 +623,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
   - `1`–`254`: fixed threshold in dB above the noise floor
   - `255` (`auto`): derive the threshold from the current spreading factor (SF7→8, SF8→10, SF9→11, SF10→14, SF11/12→16 dB above the noise floor). Re-evaluated every ~2 s, so runtime SF changes (`tempradio`) and their auto-revert are followed automatically.
 
-**Default:** `0`
+**Default:** `auto` on repeaters and companions (a companion turns `0` back into `auto` at boot), `0` on room servers and sensors
 
 ---
 
@@ -673,7 +673,7 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 **Parameters:**
 - `hours`: Interval in hours (3-168)
 
-**Default:** `12` (Repeater) - `0` (Sensor)
+**Default:** `23` (Repeater, reset on every firmware upgrade) - `47` (Room Server) - `0`, disabled (Sensor)
 
 ---
 
