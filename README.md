@@ -52,7 +52,7 @@ Hardware listen-before-talk (`cad`) is off in both firmwares. The duty-cycle tok
 | [CAD retry jitter](docs/lusofw.md#core-packet-handling) | Busy-channel retry is random 120 to 360 ms instead of 3 fixed steps | all |
 | [Advert location fallback](docs/lusofw.md#location-in-adverts) | With the `share` policy and no GPS fix, adverts use the `set lat` / `set lon` position instead of 0,0 | repeater, room, sensor |
 | [Neighbour expiry](docs/lusofw.md#neighbours) | Forgets neighbours not heard for 48 h | repeater |
-| [Board fixes](docs/lusofw.md#board-fixes) | nRF52 DFU register, nRF52 direct GDFU OTA, T-LoRa V2.1 phantom button | listed boards |
+| [Board fixes](docs/lusofw.md#board-fixes) | nRF52 DFU register, nRF52 direct GDFU OTA, T-LoRa V2.1 phantom button | all nRF52, T-LoRa V2.1 |
 | [Display](docs/lusofw.md#display) | Portuguese boot logo, LiPo battery curve | boards with a screen |
 
 ### Links

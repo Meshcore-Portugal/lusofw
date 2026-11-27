@@ -9,7 +9,7 @@ main@81dbae592ffad40b4212bc0b37e82b38da08f4bc
 
 - UPSTREAM: Sincronizado com MeshCore v1.18.0 (companion/repeater/room-server). Os comandos de rádio (`set/get af`, `dutycycle`, `tx`, `int.thresh`, `cad`, `rxdelay`, `txdelay`, `direct.txdelay`, `agc.reset.interval`, `multi.acks`, `radio.rxgain`, `path.hash.mode`) passam a ser tratados por `CommonRadioPrefs`; `set tx`, `set af` e `set dutycycle` continuam a bloquear o AutoRegions (`radio_manual`).
 
-- NRF52: Com a flag de build `LUSOFW_OTA_DIRECT` (ativa no Heltec T114) e um bootloader cuja versão começa por `gdfu-`, `start ota` reinicia diretamente para o bootloader em vez de iniciar o serviço BLE DFU. Com qualquer outro bootloader, ou sem a flag, mantém-se o comportamento anterior.
+- NRF52: A flag de build `LUSOFW_OTA_DIRECT` está activa em todas as placas nRF52. Com um bootloader cuja versão começa por `gdfu-`, `start ota` reinicia directamente para o bootloader em vez de iniciar o serviço BLE DFU. A resposta é `OK: 0x<target_id>`, o identificador que o bootloader anuncia, ou seja, os 32 bits inferiores do endereço BLE. Com qualquer outro bootloader, mantém-se o comportamento anterior.
 
 ### Correções
 
