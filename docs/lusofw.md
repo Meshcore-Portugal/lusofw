@@ -157,7 +157,7 @@ With the `share` policy, adverts carry the GPS position. If there is no GPS fix 
 ## Board fixes
 
 - nRF52: clears the GPREGRET register at boot and before power-off, so a stale DFU value cannot drop the device into the bootloader.
-- nRF52: with a `gdfu-` bootloader, `start ota` reboots straight into it (`LUSOFW_OTA_DIRECT`, on for all builds). With any other bootloader it falls back to BLE DFU.
+- nRF52: with a `gdfu-` bootloader, `start ota` reboots straight into it (`LUSOFW_OTA_DIRECT`, on for all builds). The reply is `OK: 0x<target_id>`, the low 32 bits of the BLE address, which is the ID the bootloader beacons. With any other bootloader it falls back to BLE DFU.
 - Heltec T114: True-colour Portuguese boot logo and DejaVu Sans font.
 - LilyGo T-LoRa V2.1-1.6: user button removed. GPIO0 floats on this board and could be read as a long press that powers the repeater off.
 - LilyGo T-Echo Lite: uses the SX126x LDO regulator.
