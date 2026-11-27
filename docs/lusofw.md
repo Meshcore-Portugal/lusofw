@@ -142,7 +142,7 @@ Repeater neighbours not heard for 48 hours are removed from the list.
 
 ## Location in adverts
 
-Without GPS, adverts carry the configured latitude and longitude, as upstream does with the default `prefs` policy. `buildAdvertData` skips the policy check in these builds, but the only command that changes the policy (`gps advert`) is not compiled in either, so the result is the same.
+With the `share` policy, adverts carry the GPS position. If there is no GPS fix yet, or the build has no GPS, they carry the latitude and longitude set with `set lat` / `set lon` instead of 0,0. Upstream sends 0,0. A build without GPS can still have `share` saved from an earlier GPS firmware and has no `gps advert` command to change it. The `none` and `prefs` policies behave as upstream in every build. Proposed upstream in [meshcore-dev/MeshCore#3391](https://github.com/meshcore-dev/MeshCore/pull/3391).
 
 ## Build changes
 
